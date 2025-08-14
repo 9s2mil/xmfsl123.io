@@ -128,7 +128,7 @@ footer button {
 
 /* 터치 피드백 */
 .addbutton:active {
-  transform: scale(0.98);
+  transform: rotate(45deg) scale(0.98);
 }
 
 /* ===== 입력 스크린 오버레이 ===== */

@@ -4,10 +4,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="./manifest.json">
   <link rel="stylesheet" href="plan.css">
   <meta name="theme-color" content="#ffffff">
-  <title>Plan</title>
+  <title>Puzzle and Plan</title>
 </head>
 
 <body>
@@ -58,17 +58,17 @@
         <h3 id="screenTitle">할 일 추가</h3>
       </div>
   
-      <form id="taskForm" class="screen-body" />
+      <form id="taskForm" class="screen-body">
         <!-- 제목 -->
         <label class="field">
           <span class="label">제목</span>
-          <input type="text" name="title" />
+          <input type="text" name="title">
         </label>
   
         <!-- 설명 -->
         <label class="field">
           <span class="label">설명</span>
-          <textarea name="desc" rows="3" /></textarea>
+          <textarea name="desc" rows="3"></textarea>
         </label>
   
         <!-- 난이도 -->
@@ -80,23 +80,23 @@
             <button type="button" class="star" data-star="3">3성</button>
             <button type="button" class="star" data-star="4">4성</button>
           </div>
-          <input type="hidden" name="difficulty" value="1" />
+          <input type="hidden" name="difficulty" value="1">
         </div>
   
         <!-- 날짜 -->
         <label class="field">
           <span class="label">날짜</span>
-          <input type="date" name="date" />
+          <input type="date" name="date">
         </label>
   
         <!-- 태그 -->
         <label class="field">
           <span class="label">태그</span>
-          <input type="text" name="tags" />
+          <input type="text" name="tags">
         </label>
   
-        <input type="hidden" name="mode" value="create" />
-        <input type="hidden" name="editId" value="" />
+        <input type="hidden" name="mode" value="create">
+        <input type="hidden" name="editId" value="">
 
         <!-- 액션 버튼 영역 -->
         <div class="actions">
@@ -119,7 +119,7 @@
 
   <script>
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./service-worker2.js');
+    navigator.serviceWorker.register('./service-worker2.js', { scope: './' });
   }
   </script>
 
