@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="plan.css">
+  <meta name="theme-color" content="#ffffff">
+  <title>Plan</title>
+</head>
+
+<body>
+
+  <header>
+    <div></div>
+    <div></div>
+  </header>
+
+  <main>hello, world!
+
+  </main>
+
+  <div class="popup" id="popup1">
+    <div class="popupContent">
+      <h2>일일 과제</h2><br> <button id="diamond1" class="addbutton">🗡️</button>
+      <div class="taskList" data-for="popup1"></div>
+    </div>
+  </div>
+
+  <div class="popup" id="popup2">
+    <div class="popupContent">
+      <h2>습관</h2><br> <button id="diamond2" class="addbutton">🗡️</button>
+      <div class="taskList" data-for="popup2"></div>
+    </div>
+  </div>
+
+  <div class="popup" id="popup3">
+    <div class="popupContent">
+      <h2>목표</h2><br> <button id="diamond3" class="addbutton">🗡️</button>
+      <div class="taskList" data-for="popup3"></div>
+    </div>
+  </div>
+
+  <div class="popup" id="popup4">
+    <div class="popupContent">
+      <h2>보상</h2><br> <button id="diamond4" class="addbutton">🗡️</button>
+      <div class="taskList" data-for="popup4"></div>
+    </div>
+  </div>
+
+  <!-- ===== 입력 스크린 ===== -->
+  <div class="screen" id="taskScreen" aria-hidden="true">
+    <div class="screen-backdrop"></div>
+  
+    <div class="screen-panel" role="dialog" aria-modal="true" aria-labelledby="screenTitle">
+      <div class="screen-head">
+        <h3 id="screenTitle">할 일 추가</h3>
+      </div>
+  
+      <form id="taskForm" class="screen-body" />
+        <!-- 제목 -->
+        <label class="field">
+          <span class="label">제목</span>
+          <input type="text" name="title" />
+        </label>
+  
+        <!-- 설명 -->
+        <label class="field">
+          <span class="label">설명</span>
+          <textarea name="desc" rows="3" /></textarea>
+        </label>
+  
+        <!-- 난이도 -->
+        <div class="field">
+          <span class="label">난이도</span>
+          <div class="stars" role="group" aria-label="난이도 선택">
+            <button type="button" class="star" data-star="1">1성</button>
+            <button type="button" class="star" data-star="2">2성</button>
+            <button type="button" class="star" data-star="3">3성</button>
+            <button type="button" class="star" data-star="4">4성</button>
+          </div>
+          <input type="hidden" name="difficulty" value="1" />
+        </div>
+  
+        <!-- 날짜 -->
+        <label class="field">
+          <span class="label">날짜</span>
+          <input type="date" name="date" />
+        </label>
+  
+        <!-- 태그 -->
+        <label class="field">
+          <span class="label">태그</span>
+          <input type="text" name="tags" />
+        </label>
+  
+        <input type="hidden" name="mode" value="create" />
+        <input type="hidden" name="editId" value="" />
+
+        <!-- 액션 버튼 영역 -->
+        <div class="actions">
+          <button type="button" class="btn-secondary" id="screenCancel">취소</button>
+          <button type="submit" class="btn-primary">저장</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+<footer>
+  <button data-popup="popup1">✅<br><span class="smft">일일 과제</span></button>
+  <button data-popup="popup2">🌱<br><span class="smft">습관</span></button>
+  <button data-popup="popup3">🏆<br><span class="smft">목표</span></button>
+  <button data-popup="popup4">🎁<br><span class="smft">보상</span></button>
+</footer>
+
+  <script src="plan.js"></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log('서비스 워커 등록 완료'))
+        .catch(err => console.error('서비스 워커 등록 실패', err));
+    }
+  </script>
+
+</body>
+
+</html>

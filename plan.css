@@ -1,0 +1,375 @@
+/* style.css (rollback) */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  /* 롤백: 100% 높이 복귀 */
+  height: 100%;
+  font-family: sans-serif;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  /* 롤백: dvh / safe-area 패딩 제거 */
+  /* min-height: 100dvh;  */
+  /* padding: env(safe-area-inset-top) env(safe-area-inset-right)
+             env(safe-area-inset-bottom) env(safe-area-inset-left); */
+}
+
+header {
+  flex: 0 0 30%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ddd;
+  padding: 10px;
+}
+
+header > div {
+  width: 45%;
+  height: 100%;
+  background: #bbb;
+}
+
+main {
+  flex: 1;
+  background: #f0f0f0;
+  overflow: auto;
+}
+
+footer {
+  flex: 0 0 10%;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  background: #e7c5b2;
+  /* 롤백: 안전영역 하단 패딩 제거 */
+  /* padding-bottom: env(safe-area-inset-bottom); */
+}
+
+footer button {
+  flex: 1;
+  margin: 0 2px;
+  height: 70%;
+  font-size: 1.5em;
+  border: none;
+  background: #e7c5b2;
+  color: #f0f0f0;
+}
+
+.smft {
+  font-size: 0.4em;
+}
+
+/* 팝업 기본 */
+.popup {
+  display: none;
+  position: fixed;
+  top: 30%;
+  left: 0;
+  width: 100%;
+  /* 롤백: 60dvh → 60% */
+  height: 60%;
+  background: rgba(255, 255, 255, 1);
+  border-top: 2px solid #ccc;
+  z-index: 10;
+  opacity: 0;
+  transform: translateY(100%);
+  transition: all 0.3s ease;
+  overflow-y: auto;
+}
+
+/* 팝업 보이기 */
+.popup.show {
+  display: block;
+  opacity: 1;
+  transform: none;
+}
+
+.popupContent {
+  padding: 20px;
+}
+
+.addbutton {
+  width: 40px;
+  height: 40px;
+  background: #f5f5f5;
+  border: #222 solid 1px;
+  cursor: pointer;
+  transform: rotate(45deg);
+  /* 버튼 자체를 기울임 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  top: 32vh;;
+  right: 20px;
+  z-index: 9999;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* 버튼 안의 텍스트를 다시 반대로 회전 */
+.addbutton span {
+  transform: rotate(-45deg);
+  color: #fff;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+/* 해당 팝업이 열릴 때만 버튼 노출 */
+.popup.show .addbutton {
+  display: flex;
+}
+
+/* 터치 피드백 */
+.addbutton:active {
+  transform: scale(0.98);
+}
+
+/* ===== 입력 스크린 오버레이 ===== */
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  /* 가장 위 */
+  display: none;
+  /* 기본 숨김 */
+}
+
+.screen.show {
+  display: block;
+}
+
+.screen-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.screen-panel {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(640px, 92vw);
+  max-height: 86vh;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.screen-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.screen-head h3 {
+  font-size: 18px;
+}
+
+.screen-close {
+  border: 0;
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.screen-body {
+  padding: 16px;
+  overflow: auto;
+  display: grid;
+  gap: 14px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.label {
+  font-size: 13px;
+  color: #666;
+}
+
+.field input[type="text"],
+.field input[type="date"],
+.field textarea {
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+/* 난이도 묶음 컨테이너: 가운데 정렬 + 버튼 간 간격 */
+.stars {
+  display: flex;
+  justify-content: center;
+  /* 가운데 정렬 */
+  align-items: center;
+  gap: 5vw;
+  /* 버튼 사이 간격 */
+  width: 100%;
+}
+
+/* 개별 버튼 스타일 */
+.star {
+  display: inline-flex;
+  /* 내용 중앙 정렬 */
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #ddd;
+  background: #f7f7f7;
+  font-size: 14px;
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+/* 선택 상태 */
+.star.active {
+  background: #222;
+  color: #fff;
+  border-color: #222;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.btn-primary,
+.btn-secondary {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-primary {
+  background: #222;
+  color: #fff;
+}
+
+.btn-secondary {
+  background: #eee;
+  color: #222;
+}
+
+/* 화면 작게일 때 */
+@media (max-width: 420px) {
+  .screen-panel {
+    width: 94vw;
+  }
+}
+
+/* 카드 목록 컨테이너 */
+.taskList {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* 카드(네모박스) */
+.task-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* 카드 좌측 정보 */
+.task-info .title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.task-info .desc {
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 6px;
+  white-space: pre-line;
+  line-height: 1.5;
+}
+
+.task-info .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  font-size: 12px;
+  color: #777;
+}
+
+.task-info .difficulty {
+  letter-spacing: 1px;
+}
+
+/* 태그 배지 */
+.tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #f2f2f2;
+  color: #444;
+  font-size: 11px;
+}
+
+/* 카드 우측 버튼 */
+.task-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.task-actions .btn {
+  border: 1px solid #ddd;
+  background: #f7f7f7;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.task-actions .btn:hover {
+  background: #efefef;
+}
+
+/* 완료 상태 */
+.task-card.done {
+  opacity: 0.75;
+}
+
+.task-card.done .title,
+.task-card.done .desc {
+  text-decoration: line-through;
+}
+
+.task-card.done .btn-check {
+  pointer-events: none;
+  opacity: 0.5;
+}
