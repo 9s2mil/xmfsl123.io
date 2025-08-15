@@ -600,3 +600,51 @@ textarea,
 #headerNickname {
   cursor: pointer;
 }
+
+.main-buttons {
+  display: flex;
+  flex-direction: column;
+  /* 세로 배치 */
+  align-items: center;
+  /* 버튼 가운데 정렬 */
+  gap: 1.2rem;
+  /* 버튼 간 간격 */
+  padding: 1.5rem;
+}
+
+.main-btn {
+  width: 140%;
+  padding: 1.2rem 2rem;
+  /* 세로·가로 패딩 증가 */
+  font-size: 1.4rem;
+  /* 글자 크기 조금 키움 */
+  font-weight: bold;
+  color: #fff;
+  background: linear-gradient(135deg, #d35400, #e67e22);
+  /* 예: 로즈골드 계열 */
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.main-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.main-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.main-container {
+  display: flex;
+  justify-content: center;
+  /* 가로 중앙 */
+  align-items: center;
+  /* 세로 중앙 */
+  flex: 1;
+  /* 남은 공간 전부 차지 */
+}
