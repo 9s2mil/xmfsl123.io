@@ -56,13 +56,180 @@
   </div>
 </header>
 
+  <!-- -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- -->
+
   <main class="main-container">
     <div class="main-buttons">
-      <button class="main-btn">모험</button>
-      <button class="main-btn">카드</button>
-      <button class="main-btn">소환</button>
+      <button class="main-btn" id="btnAdventure">모험</button>
+      <button class="main-btn" id="btnCardTeam">팀편성</button>
+      <button class="main-btn" id="btnCardList">카드도감</button>
+      <button class="main-btn" id="btnOpenSummon" data-popup="summonMain">소환</button>
     </div>
   </main>
+
+  <!-- 모험 전체 화면 -->
+<div id="adventureScreen" class="adventure-screen" style="display:none;">
+
+  <!-- 상단 UI -->
+  <div class="adventure-header">
+    <button class="btn-home">🏠</button>
+    <div class="key-count">🔑 <span id="roseKeyCount">0</span></div>
+  </div>
+
+  <!-- 적 일러스트 영역 -->
+  <div class="enemy-area">
+    <div class="enemy-grid">
+      <div class="enemy-slot"></div>
+      <div class="enemy-slot"></div>
+      <div class="enemy-slot"></div>
+    </div>
+  </div>
+
+  <!-- 아군 카드 영역 -->
+  <div class="ally-team">
+    <div class="ally-slot"></div>
+    <div class="ally-slot"></div>
+    <div class="ally-slot"></div>
+    <div class="ally-slot"></div>
+    <div class="ally-slot"></div>
+    <div class="ally-slot"></div>
+  </div>
+
+  <!-- HP 바 -->
+  <div class="hp-bar">
+    <div class="hp-fill" style="width: 100%; height: 1vh;"></div>
+  </div>
+
+  <!-- 퍼즐판 -->
+  <div class="puzzle-board">
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+    <div class="puzzle-slot"></div>
+  </div>
+
+  <!-- 스킬 게이지 -->
+  <div class="skill-gauge">
+    <div class="skill-segment"></div>
+    <div class="skill-segment"></div>
+    <div class="skill-segment"></div>
+    <div class="skill-segment"></div>
+    <div class="skill-segment"></div>
+    <div class="skill-segment"></div>
+    <div class="skill-segment"></div>
+  </div>
+
+</div>
+
+  <!-- 1단계: 카드 - 팀편성 팝업 -->
+  <div class="popup" id="CardTeam">
+    <div class="popupContent">
+      <h2>팀편성</h2>
+    </div>
+  </div>
+
+  <!-- 1단계: 카드 - 카드도감 팝업 -->
+  <div class="popup" id="CardList">
+    <div class="popupContent">
+      <h2>카드목록</h2>
+    </div>
+  </div>
+
+  <!-- 1단계: 소환 메인 레이어 -->
+  <div class="popup" id="summonMain">
+    <div class="popupContent">
+      <h2>소환</h2>
+      <button class="btn-gate" id="btnGateKerei">케레이 게이트</button>
+      <button class="btn-gate" id="btnGateRoseKerei">로즈 케레이 게이트</button>
+      <button class="btn-gate" id="btnGateGoldKerei">골든 케레이 게이트</button>
+    </div>
+  </div>
+  
+  <!-- 2단계: 케레이 게이트 레이어 -->
+  <div class="popup" id="GateKerei">
+    <div class="popupContent">
+      <h2>케레이 게이트</h2>
+      <!-- 케레이 게이트 관련 내용 -->
+    </div>
+  </div>
+  
+  <!-- 2단계: 로즈 케레이 게이트 레이어 -->
+  <div class="popup" id="GateRoseKerei">
+    <div class="popupContent">
+      <h2>로즈 케레이 게이트</h2>
+      <!-- 로즈 케레이 게이트 관련 내용 -->
+    </div>
+  </div>
+  
+  <!-- 2단계: 골든 케레이 게이트 레이어 -->
+  <div class="popup" id="GateGoldKerei">
+    <div class="popupContent">
+      <h2>골든 케레이 게이트</h2>
+      <!-- 골든 케레이 게이트 관련 내용 -->
+    </div>
+  </div>
+
+  <!-- 3단계: 케레이 게이트 팝업 -->
+  <div class="popup" id="GateKerei">
+    <div class="popupContent">
+      <h2>케레이 게이트</h2>
+      <!-- 여기에 나중에 콘텐츠 추가 가능 -->
+    </div>
+  </div>
+  
+  <!-- 3단계: 로즈 케레이 게이트 팝업 -->
+  <div class="popup" id="GateRoseKerei">
+    <div class="popupContent">
+      <h2>로즈 케레이 게이트</h2>
+      <!-- 여기에 나중에 콘텐츠 추가 가능 -->
+    </div>
+  </div>
+  
+  <!-- 3단계: 골든 케레이 게이트 팝업 -->
+  <div class="popup" id="GateGoldKerei">
+    <div class="popupContent">
+      <h2>골든 케레이 게이트</h2>
+      <!-- 여기에 나중에 콘텐츠 추가 가능 -->
+    </div>
+  </div>
+
+  <!-- -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- -->
+<footer>
+  <button data-popup="popup1">✅<br><span class="smft">일일 과제</span></button>
+  <button data-popup="popup2">🌱<br><span class="smft">습관</span></button>
+  <button data-popup="popup3">🏆<br><span class="smft">목표</span></button>
+  <button data-popup="popup4">🎁<br><span class="smft">보상</span></button>
+</footer>
 
   <div class="popup" id="popup1">
     <div class="popupContent">
@@ -70,13 +237,6 @@
       <div class="taskList" data-for="popup1"></div>
     </div>
   </div>
-
-<footer>
-  <button data-popup="popup1">✅<br><span class="smft">일일 과제</span></button>
-  <button data-popup="popup2">🌱<br><span class="smft">습관</span></button>
-  <button data-popup="popup3">🏆<br><span class="smft">목표</span></button>
-  <button data-popup="popup4">🎁<br><span class="smft">보상</span></button>
-</footer>
 
   <div class="popup" id="popup2">
     <div class="popupContent">

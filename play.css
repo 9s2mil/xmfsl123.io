@@ -1,0 +1,142 @@
+body.no-scroll {
+  overflow: hidden;
+}
+
+/* 게이트 선택 버튼 */
+.btn-gate {
+  display: block;
+  width: 80%;
+  margin: 15px auto;
+  padding: 15px;
+  font-size: 1.2rem;
+  background: #444;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-gate:hover {
+  background: #666;
+}
+
+.adventure-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+  color: white;
+  z-index: 1005;
+  display: flex;
+  flex-direction: column;
+  padding: 5vh 0.5vh;
+}
+
+.adventure-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  background: #a76b6b;
+}
+
+.btn-home {
+  font-size: 20px;
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+}
+
+.key-count {
+  font-size: 18px;
+}
+
+.enemy-area {
+  flex: 0 0 auto;
+  height: 30vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #edecec;
+}
+
+.enemy-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.enemy-slot {
+  background-color: #ebebeb;
+  border: 1px solid #fefefe;
+}
+
+.ally-team {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1vw;
+  width: 100%;
+  margin-top: 0.5vh;
+}
+
+.ally-slot {
+  aspect-ratio: 1 / 1;
+  background-color: #ffffff;
+  border: 1px solid #ffffff;
+}
+
+.card-slot {
+  width: 50px;
+  height: 50px;
+  background: #444;
+  margin: 2px;
+  border-radius: 5px;
+}
+
+.hp-bar {
+  height: 20px;
+  background: #555;
+  margin: 5px;
+  border-radius: 5px;
+  overflow: hidden;
+  height: 1vh;
+}
+
+.hp-fill {
+  height: 100%;
+  background: rgb(255, 255, 255);
+  border: 1px solid #645959;
+}
+
+.puzzle-board {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1vw;
+  width: 100%;
+  background-color: #fbeded;
+}
+
+.puzzle-slot {
+  aspect-ratio: 1 / 1;
+  background-color: #ffffff;
+  border: 1px solid #ffffff;
+}
+
+.skill-gauge {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-top: 1vh;
+  width: 100%;
+  height: 1vh;
+  gap: 0.3vw;
+}
+
+.skill-segment {
+  background-color: #e9fffe;
+  border: 1px solid #dcdcdc;
+}

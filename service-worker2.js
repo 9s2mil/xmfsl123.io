@@ -7,6 +7,8 @@ const ASSETS_PLAN = [
   './index.html',
   './plan.css',
   './plan.js',
+  './play.css',
+  './play.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png'

@@ -181,26 +181,73 @@ const Renderer = {
 
 // ================== DOM 로직 ==================
 document.addEventListener('DOMContentLoaded', () => {
-    // ----- 팝업 토글(footer 버튼) -----
     const popups = document.querySelectorAll('.popup');
-    const footerButtons = document.querySelectorAll('footer button');
+    const footerButtons = document.querySelectorAll('footer button, #btnOpenSummon');
     let activePopup = null;
+
+    function openPopupById(popupId) {
+        const targetPopup = document.getElementById(popupId);
+        if (!targetPopup) return;
+
+        popups.forEach(p => p.classList.remove('show'));
+        targetPopup.classList.add('show');
+        activePopup = targetPopup;
+        document.body.classList.add('no-scroll');
+    }
+
+    function closePopup(popupEl) {
+        popupEl.classList.remove('show');
+        document.body.classList.remove('no-scroll');
+        activePopup = null;
+    }
 
     footerButtons.forEach(button => {
         button.addEventListener('click', () => {
             const popupId = button.getAttribute('data-popup');
+            if (!popupId) return;
+
             const targetPopup = document.getElementById(popupId);
             if (!targetPopup) return;
 
             if (activePopup === targetPopup) {
-                targetPopup.classList.remove('show');
-                activePopup = null;
-                return;
+                closePopup(targetPopup);
+            } else {
+                openPopupById(popupId);
             }
-            popups.forEach(p => p.classList.remove('show'));
-            targetPopup.classList.add('show');
-            activePopup = targetPopup;
         });
+    });
+    // ================== 모험 팝업 연결 ==================
+    const btnAdventure = document.getElementById('btnAdventure');
+    const adventureScreen = document.getElementById('adventureScreen');
+
+    if (btnAdventure && adventureScreen) {
+        btnAdventure.addEventListener('click', () => {
+            adventureScreen.style.display = 'block';
+        });
+    }
+
+    // ================== 카드 팝업 연결 ==================
+    const btnCardTeam = document.getElementById('btnCardTeam');
+    const btnCardList = document.getElementById('btnCardList');
+
+    btnCardTeam?.addEventListener('click', () => {
+        document.querySelectorAll('.popup').forEach(p => p.classList.remove('show'));
+        document.getElementById('CardTeam')?.classList.add('show');
+    });
+    btnCardList?.addEventListener('click', () => {
+        document.querySelectorAll('.popup').forEach(p => p.classList.remove('show'));
+        document.getElementById('CardList')?.classList.add('show');
+    });
+
+    // === 소환 메인 내부 게이트 버튼 → 각 팝업 열기 ===
+    document.getElementById('btnGateKerei')?.addEventListener('click', () => {
+        openPopupById('GateKerei');
+    });
+    document.getElementById('btnGateRoseKerei')?.addEventListener('click', () => {
+        openPopupById('GateRoseKerei');
+    });
+    document.getElementById('btnGateGoldKerei')?.addEventListener('click', () => {
+        openPopupById('GateGoldKerei');
     });
 
     // ----- 스크린(오버레이) 참조 -----
