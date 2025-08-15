@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <link rel="manifest" href="./manifest.json">
   <link rel="stylesheet" href="plan.css">
+  <link rel="stylesheet" href="play.css">
   <meta name="theme-color" content="#ffffff">
   <title>Puzzle and Plan</title>
 </head>
@@ -55,9 +56,12 @@
   </div>
 </header>
 
-
-  <main>hello, world!
-
+  <main class="main-container">
+    <div class="main-buttons">
+      <button class="main-btn">모험</button>
+      <button class="main-btn">카드</button>
+      <button class="main-btn">소환</button>
+    </div>
   </main>
 
   <div class="popup" id="popup1">
@@ -66,6 +70,13 @@
       <div class="taskList" data-for="popup1"></div>
     </div>
   </div>
+
+<footer>
+  <button data-popup="popup1">✅<br><span class="smft">일일 과제</span></button>
+  <button data-popup="popup2">🌱<br><span class="smft">습관</span></button>
+  <button data-popup="popup3">🏆<br><span class="smft">목표</span></button>
+  <button data-popup="popup4">🎁<br><span class="smft">보상</span></button>
+</footer>
 
   <div class="popup" id="popup2">
     <div class="popupContent">
@@ -88,7 +99,7 @@
     <!-- 1) 로즈키 (브론즈/로즈골드) : 1포인트 = 1개 구매 -->
     <section class="reward-card shop" id="shopRose" data-cost="1" aria-label="로즈키 상점">
       <header class="rc-head">
-        <h3>로즈키 <span class="icon" aria-hidden="true">🗝️</span></h3>
+        <h3>로즈키 <span class="icon" aria-hidden="true">✭</span></h3>
         <button type="button" class="btn-buy" id="buyRoseBtn" aria-label="로즈키 1개 구매 (1포인트)">
           구매
         </button>
@@ -98,7 +109,7 @@
     <!-- 2) 실버키 : 조건형 (로즈키 10개당 1회 구매 가능) -->
     <section class="reward-card shop" id="shopSilver" data-unlock-by="rose" data-unlock-step="10" data-cost="1" aria-label="실버키 상점">
       <header class="rc-head">
-        <h3>실버키 <span class="icon" aria-hidden="true">🔑</span></h3>
+        <h3>실버키 <span class="icon" aria-hidden="true">🗝️</span></h3>
         <button type="button" class="btn-buy" id="buySilverBtn" disabled>획득</button>
       </header>
     </section>
@@ -106,7 +117,7 @@
     <!-- 3) 골드키 : 보상형 (실버키 10개당 자동 1개 지급) -->
     <section class="reward-card shop" id="shopGold" data-reward-by="silver" data-reward-step="10" aria-label="골드키 보상">
       <header class="rc-head">
-        <h3>골드키 <span class="icon" aria-hidden="true">🗝️✨</span></h3>
+        <h3>골드키 <span class="icon" aria-hidden="true">🔑</span></h3>
         <button type="button" class="btn-buy" id="buyGoldBtn" disabled>획득</button>
       </header>
     </section>
@@ -173,15 +184,8 @@
     </div>
   </div>
 
-<footer>
-  <button data-popup="popup1">✅<br><span class="smft">일일 과제</span></button>
-  <button data-popup="popup2">🌱<br><span class="smft">습관</span></button>
-  <button data-popup="popup3">🏆<br><span class="smft">목표</span></button>
-  <button data-popup="popup4">🎁<br><span class="smft">보상</span></button>
-</footer>
-
   <script src="plan.js"></script>
-
+  <script src="play.js"></script>
   <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./service-worker2.js', { scope: './' });
