@@ -579,11 +579,11 @@ const Profile = (() => {
     }
 
     function bind() {
-        elEditBtn?.addEventListener('click', startEdit);
+        elNick?.addEventListener('click', startEdit);
+
         elNickInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') commitEdit(); });
         elNickInput?.addEventListener('blur', commitEdit);
 
-        // Rewards 변경 시 헤더 즉시 반영
         window.addEventListener('rewards:update', render);
     }
 
@@ -647,3 +647,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.visibilityState === 'visible') render();
     });
 })();
+
+// 확대 제스처 차단(iOS Safari)
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('gesturechange', e => e.preventDefault());
+document.addEventListener('gestureend', e => e.preventDefault());
+
+// 더블클릭 확대 방지
+document.addEventListener('dblclick', e => e.preventDefault());
