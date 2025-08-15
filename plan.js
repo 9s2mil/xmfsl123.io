@@ -153,6 +153,8 @@ const Renderer = {
                 t.done = true;                         // 메모리 상 반영
                 card.classList.add('done');            // 취소선 적용
                 btnCheck.disabled = true;              // 버튼 비활성화
+
+                Rewards.grantPoints(t.difficulty || 1); // ★ 난이도만큼 포인트 지급(1~4)
             });
 
             btnEdit.addEventListener('click', () => {
@@ -390,3 +392,258 @@ document.addEventListener('DOMContentLoaded', () => {
     dailyResetIfNeeded();   // 앱 로드시 날짜 바뀌었으면 초기화
     scheduleMidnightReset(); // 다음 자정에 자동 초기화
 });
+
+// ================== Rewards (popup4) ==================
+const Rewards = (() => {
+    const LS_KEY = 'rewardsV1';
+    const state = {
+        points: 0,
+        roseTotal: 0,
+        silverTotal: 0,
+        goldTotal: 0,
+        roseCycle: 0,    // 로즈 해금 카운터(0~10, 10에서 정지)
+        silverCycle: 0   // 골드 해금 카운터(0~10, 10에서 정지)
+    };
+
+    // ---- 로컬스토리지 ----
+    function load() {
+        try {
+            const raw = localStorage.getItem(LS_KEY);
+            if (raw) {
+                const data = JSON.parse(raw);
+                Object.assign(state, data);
+            } else {
+                save();
+            }
+        } catch {
+            save();
+        }
+    }
+    function save() {
+        localStorage.setItem(LS_KEY, JSON.stringify(state));
+    }
+
+    // ---- DOM 훅 ----
+    let scope, pointsValueEl, pointsButtonEl, btnRose, btnSilver, btnGold;
+
+    function cacheElements() {
+        scope = document.getElementById('popup4');
+        if (!scope) return;
+
+        // h2 옆 포인트 버튼(.addbutton) + 내부 숫자(#pointsValue)
+        pointsButtonEl = scope.querySelector('.addbutton');
+        pointsValueEl = scope.querySelector('#pointsValue');
+
+        // 구매/받기 버튼들
+        btnRose = scope.querySelector('#buyRoseBtn');
+        btnSilver = scope.querySelector('#buySilverBtn');
+        btnGold = scope.querySelector('#buyGoldBtn');
+    }
+
+    // ---- UI 갱신 ----
+    function updateUI() {
+        if (pointsValueEl) pointsValueEl.textContent = state.points;
+        // if (pointsButtonEl) pointsButtonEl.textContent = `${state.points}`;
+
+        // 활성/비활성
+        if (btnRose) btnRose.disabled = !(state.points >= 1);
+        if (btnSilver) btnSilver.disabled = !(state.roseCycle === 10);
+        if (btnGold) btnGold.disabled = !(state.silverCycle === 10);
+    }
+
+    // ---- 규칙 함수 ----
+    function grantPoints(n) {
+        const v = Math.max(0, Number(n) || 0);
+        if (!v) return;
+        state.points += v;
+        save(); updateUI(); 
+        window.dispatchEvent(new CustomEvent('rewards:update'));
+    }
+
+    function buyRose() {
+        if (state.points < 1) return;
+        state.points -= 1;
+        state.roseTotal += 1;
+        // 10에서 멈춤 (초과분은 멍청비용)
+        state.roseCycle = Math.min(10, state.roseCycle + 1);
+        save(); updateUI();
+        window.dispatchEvent(new CustomEvent('rewards:update'));
+    }
+
+    function claimSilver() {
+        if (state.roseCycle !== 10) return;
+        state.silverTotal += 1;
+        state.roseCycle = 0; // 초기화
+        // 골드 해금 카운터 증가(10에서 멈춤)
+        state.silverCycle = Math.min(10, state.silverCycle + 1);
+        save(); updateUI();
+        window.dispatchEvent(new CustomEvent('rewards:update'));
+    }
+
+    function claimGold() {
+        if (state.silverCycle !== 10) return;
+        state.goldTotal += 1;
+        state.silverCycle = 0; // 초기화
+        save(); updateUI();
+        window.dispatchEvent(new CustomEvent('rewards:update'));
+    }
+
+    // ---- 이벤트 바인딩 ----
+    function bind() {
+        btnRose?.addEventListener('click', buyRose);
+        btnSilver?.addEventListener('click', claimSilver);
+        btnGold?.addEventListener('click', claimGold);
+    }
+
+    function init() {
+        load();
+        cacheElements();
+        bind();
+        updateUI();
+    }
+
+    return {
+        init,
+        grantPoints,     // 플래너의 "확인" 로직에서 호출
+        // 테스트/디버그용(원하면 콘솔에서 사용)
+        _state: state,
+        _save: save, _updateUI: updateUI
+    };
+})();
+
+// DOM 준비 후 초기화(기존 DOMContentLoaded가 있다면 그 안/뒤에서 호출해도 무방)
+document.addEventListener('DOMContentLoaded', () => {
+    Rewards.init();
+});
+
+// ================== Profile(헤더) ==================
+const Profile = (() => {
+    const LS_KEY = 'profileV1';
+    const state = { nickname: '익명', rank: 1, keray: 0 };
+
+    // DOM
+    let elNick, elEditBtn, elNickInput, elRank, elRose, elSilver, elGold, elKeray;
+
+    function load() {
+        try {
+            const raw = localStorage.getItem(LS_KEY);
+            if (raw) { Object.assign(state, JSON.parse(raw)); }
+            else save();
+        } catch { save(); }
+    }
+    function save() { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+
+    function cache() {
+        elNick = document.getElementById('headerNickname');
+        elEditBtn = document.getElementById('btnEditNick');
+        elNickInput = document.getElementById('nickInput');
+        elRank = document.getElementById('headerRank');
+        elRose = document.getElementById('hdrRose');
+        elSilver = document.getElementById('hdrSilver');
+        elGold = document.getElementById('hdrGold');
+        elKeray = document.getElementById('hdrKeray');
+    }
+
+    function render() {
+        if (elNick) elNick.textContent = state.nickname;
+        if (elRank) elRank.textContent = state.rank;
+        if (elKeray) elKeray.textContent = state.keray;
+
+        // Rewards 연동(있으면)
+        const R = (window.Rewards && window.Rewards._state) ? window.Rewards._state : null;
+        if (R) {
+            if (elRose) elRose.textContent = R.roseTotal ?? 0;
+            if (elSilver) elSilver.textContent = R.silverTotal ?? 0;
+            if (elGold) elGold.textContent = R.goldTotal ?? 0;
+        }
+    }
+
+    function startEdit() {
+        if (!elNick || !elNickInput) return;
+        elNick.style.display = 'none';
+        elNickInput.style.display = 'inline-block';
+        elNickInput.value = state.nickname;
+        elNickInput.focus();
+        elNickInput.select();
+    }
+    function commitEdit() {
+        if (!elNick || !elNickInput) return;
+        const v = (elNickInput.value || '').trim();
+        if (v.length > 0 && v.length <= 20) {
+            state.nickname = v;
+            save();
+        }
+        elNickInput.style.display = 'none';
+        elNick.style.display = '';
+        render();
+    }
+
+    function bind() {
+        elEditBtn?.addEventListener('click', startEdit);
+        elNickInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') commitEdit(); });
+        elNickInput?.addEventListener('blur', commitEdit);
+
+        // Rewards 변경 시 헤더 즉시 반영
+        window.addEventListener('rewards:update', render);
+    }
+
+    function init() {
+        load(); cache(); bind(); render();
+    }
+
+    return { init, state };
+})();
+
+document.addEventListener('DOMContentLoaded', () => {
+    Profile.init();
+});
+
+// ===== Header Key Counters (로즈/실버/골드) =====
+(function HeaderKeys() {
+    const LS_KEY = 'rewardsV1';
+
+    // 헤더 칩 요소 캐시
+    const elRose = document.getElementById('hdrRose');
+    const elSilver = document.getElementById('hdrSilver');
+    const elGold = document.getElementById('hdrGold');
+
+    function readFromLS() {
+        try {
+            const raw = localStorage.getItem(LS_KEY);
+            if (!raw) return { roseTotal: 0, silverTotal: 0, goldTotal: 0 };
+            const obj = JSON.parse(raw);
+            return {
+                roseTotal: Number(obj.roseTotal ?? 0),
+                silverTotal: Number(obj.silverTotal ?? 0),
+                goldTotal: Number(obj.goldTotal ?? 0),
+            };
+        } catch {
+            return { roseTotal: 0, silverTotal: 0, goldTotal: 0 };
+        }
+    }
+
+    function currentState() {
+        // Rewards 모듈이 있으면 그 상태를 우선 사용
+        if (window.Rewards && Rewards._state) return Rewards._state;
+        // 없으면 LocalStorage에서 읽음
+        return readFromLS();
+    }
+
+    function render() {
+        const s = currentState();
+        if (elRose) elRose.textContent = s.roseTotal ?? 0;
+        if (elSilver) elSilver.textContent = s.silverTotal ?? 0;
+        if (elGold) elGold.textContent = s.goldTotal ?? 0;
+    }
+
+    // 초기 1회 렌더
+    render();
+
+    // Rewards 모듈에서 변경 이벤트를 쏴주면 즉시 반영
+    window.addEventListener('rewards:update', render);
+
+    // 혹시 사용자가 다른 탭에서 조작한 뒤 돌아올 때 동기화
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') render();
+    });
+})();

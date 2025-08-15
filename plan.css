@@ -26,14 +26,18 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #ddd;
+  background: rgba(0,0,0,0);
   padding: 10px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 header > div {
   width: 45%;
   height: 100%;
-  background: #bbb;
+  background: rgba(0, 0, 0, 0);
+  min-height: 0;
+  min-width: 0;
 }
 
 main {
@@ -116,8 +120,9 @@ footer button {
 /* 버튼 안의 텍스트를 다시 반대로 회전 */
 .addbutton span {
   transform: rotate(-45deg);
-  color: #fff;
-  font-size: 14px;
+  color: #000;
+  font-weight: bold;
+  font-size: auto;
   pointer-events: none;
 }
 
@@ -372,4 +377,203 @@ footer button {
 .task-card.done .btn-check {
   pointer-events: none;
   opacity: 0.5;
+}
+/* === Rewards (가벼운 카드 + 헤더 버튼 정렬) === */
+.rewards-wrap {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2vh;
+  padding: 6px 0;
+  
+}
+
+@media (min-width: 480px) {
+  .rewards-wrap {
+    grid-template-columns: 1fr 1fr;
+    /* 화면 넓으면 2열 */
+  }
+}
+
+.reward-card {
+  border: 1px solid #e9effc;
+  border-radius: 12px;
+  background: #fff;
+  padding: 1vh 12px;
+}
+
+.rc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2vh 12px;
+  border-radius: 8%;
+  background-color: #ffffff;
+}
+
+.rc-head h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rc-head .icon {
+  opacity: .9;
+}
+
+/* 버튼 최소 스타일 */
+.btn-buy,
+.btn-disabled {
+  appearance: none;
+  border: 1px solid #c4d9f9;
+  background: #f9fafb;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  width: 20vw;
+  height: 4vh;
+}
+
+.btn-buy:hover {
+  background: #f3f4f6;
+}
+
+.btn-buy:active {
+  background: #eef2f7;
+}
+
+.btn-buy:disabled,
+.btn-disabled,
+[aria-disabled="true"] {
+  opacity: .45;
+  cursor: default;
+  pointer-events: none;
+}
+.rotated {
+  display: inline-block;
+  transform: rotate(90deg);
+  transform-origin: center center;
+}
+#pointsValue {
+  display: inline-block;
+  transform: rotate(-45deg);
+  /* 또는 90deg */
+  transform-origin: center center;
+}
+
+/* ===== Header Info (좌/우 정보창) ===== */
+.app-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr !important;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  height: 100%;
+  align-items: stretch;
+}
+
+.hdr-left {
+  height: 100%;
+  width: 100%;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  justify-items: center;
+  align-items: center;
+  gap: 4px;
+  min-height: 0;
+}
+
+.avatar {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  min-height: 0;
+}
+
+.leader {
+  font-weight: 700;
+  font-size: 4.2vw;
+  color: #374151;
+  line-height: 1.1;
+}
+
+.hdr-right {
+  height: 100%;
+  width: 100%;
+  display: grid;
+  grid-auto-rows: auto;
+  justify-items: center;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+}
+
+.hdr-right .row {
+  width: 100%;
+  justify-content: center;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.row .label {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.icon-btn {
+  border: 0;
+  background: transparent;
+  padding: 2px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.icon-btn:active {
+  transform: scale(.96);
+}
+
+.nick-input {
+  display: none;
+  /* 수정버튼 누르면 JS가 토글 */
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 14px;
+}
+
+.chip {
+  padding: 2px 8px;
+  font-size: 12px;
+  background: #fff;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.key-icon {
+  width: 20px;
+  height: 8px;
+  vertical-align: middle;  /* 텍스트랑 수평 맞춤 */
+  transform: rotate(-45deg);
 }

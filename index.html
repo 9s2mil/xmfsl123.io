@@ -12,10 +12,50 @@
 
 <body>
 
-  <header>
-    <div></div>
-    <div></div>
-  </header>
+<header id="appHeader" class="app-header">
+  <!-- 좌측: 아바타 + 리더 -->
+  <div class="hdr-left">
+    <div class="avatar" id="headerAvatar" aria-label="프로필 이미지">
+      <img src="icons/avatar.png" alt="리더 아바타" class="avatar-img">
+    </div>
+    <div class="leader" id="headerLeaderText"> </div>
+  </div>
+
+  <!-- 우측: 닉네임/랭크/키/케레이 -->
+  <div class="hdr-right">
+    <div class="row nick">
+      <span id="headerNickname">익명</span>
+      <button id="btnEditNick" class="icon-btn" type="button" aria-label="닉네임 수정">✏️</button>
+      <input id="nickInput" class="nick-input" type="text" maxlength="20" placeholder="닉네임" />
+    </div>
+
+    <div class="row meta">
+      <span class="label">랭크</span>
+      <strong id="headerRank">1</strong>
+    </div>
+
+    <div class="row keray">
+      <span class="label">케레이</span>
+      <strong id="hdrKeray">0</strong>
+    </div>
+
+    <div class="row keys">
+      <div class="key chip">
+        <img class="key-icon" src="icons/key-rose.png" alt="로즈키">
+        <strong id="hdrRose">0</strong>
+      </div>
+      <div class="key chip">
+        <img class="key-icon" src="icons/key-silver.png" alt="실버키">
+        <strong id="hdrSilver">0</strong>
+      </div>
+      <div class="key chip">
+        <img class="key-icon" src="icons/key-gold.png" alt="골드키">
+        <strong id="hdrGold">0</strong>
+      </div>
+    </div>
+  </div>
+</header>
+
 
   <main>hello, world!
 
@@ -43,10 +83,36 @@
   </div>
 
   <div class="popup" id="popup4">
-    <div class="popupContent">
-      <h2>보상</h2><br> <button id="diamond4" class="addbutton">🗡️</button>
-      <div class="taskList" data-for="popup4"></div>
-    </div>
+    <div class="popupContent"><div class="rewards-wrap" id="rewardsWrap" aria-label="보상 상점">
+    <h2>보상</h2><br> <button class="addbutton" id="pointsButton" type="button" aria-disabled="true"><strong id="pointsValue">0</strong></button>
+  
+    <!-- 1) 로즈키 (브론즈/로즈골드) : 1포인트 = 1개 구매 -->
+    <section class="reward-card shop" id="shopRose" data-cost="1" aria-label="로즈키 상점">
+      <header class="rc-head">
+        <h3>로즈키 <span class="icon" aria-hidden="true">🗝️</span></h3>
+        <button type="button" class="btn-buy" id="buyRoseBtn" aria-label="로즈키 1개 구매 (1포인트)">
+          구매
+        </button>
+      </header>
+    </section>
+
+    <!-- 2) 실버키 : 조건형 (로즈키 10개당 1회 구매 가능) -->
+    <section class="reward-card shop" id="shopSilver" data-unlock-by="rose" data-unlock-step="10" data-cost="1" aria-label="실버키 상점">
+      <header class="rc-head">
+        <h3>실버키 <span class="icon" aria-hidden="true">🔑</span></h3>
+        <button type="button" class="btn-buy" id="buySilverBtn" disabled>획득</button>
+      </header>
+    </section>
+        
+    <!-- 3) 골드키 : 보상형 (실버키 10개당 자동 1개 지급) -->
+    <section class="reward-card shop" id="shopGold" data-reward-by="silver" data-reward-step="10" aria-label="골드키 보상">
+      <header class="rc-head">
+        <h3>골드키 <span class="icon" aria-hidden="true">🗝️✨</span></h3>
+        <button type="button" class="btn-buy" id="buyGoldBtn" disabled>획득</button>
+      </header>
+    </section>
+    
+    </div></div>
   </div>
 
   <!-- ===== 입력 스크린 ===== -->
