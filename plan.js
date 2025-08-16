@@ -216,6 +216,28 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+    // ----- 홈 버튼 기능 -----
+    const homeBtn = document.querySelector("#adventureScreen .btn-home");
+
+    if (homeBtn) {
+        homeBtn.addEventListener("click", () => {
+            // 현재 열린 팝업 전부 닫기
+            document.querySelectorAll(".popup.show").forEach(p => {
+                p.classList.remove("show");
+            });
+
+            // 모험 화면 닫기
+            const adventureScreen = document.getElementById("adventureScreen");
+            if (adventureScreen) {
+                adventureScreen.style.display = "none";
+            }
+
+            // 상태 초기화
+            activePopup = null;
+            document.body.classList.remove("no-scroll");
+        });
+    }
+
     // ================== 모험 팝업 연결 ==================
     const btnAdventure = document.getElementById('btnAdventure');
     const adventureScreen = document.getElementById('adventureScreen');
@@ -551,14 +573,12 @@ const Rewards = (() => {
 
     return {
         init,
-        grantPoints,     // 플래너의 "확인" 로직에서 호출
-        // 테스트/디버그용(원하면 콘솔에서 사용)
+        grantPoints,     
         _state: state,
         _save: save, _updateUI: updateUI
     };
 })();
 
-// DOM 준비 후 초기화(기존 DOMContentLoaded가 있다면 그 안/뒤에서 호출해도 무방)
 document.addEventListener('DOMContentLoaded', () => {
     Rewards.init();
 });
@@ -702,3 +722,23 @@ document.addEventListener('gestureend', e => e.preventDefault());
 
 // 더블클릭 확대 방지
 document.addEventListener('dblclick', e => e.preventDefault());
+
+// ===== 로즈키 카운트 동기화 =====
+(function RoseKeySync() {
+    const hdrRose = document.getElementById('hdrRose');
+    const roseKeyCount = document.getElementById('roseKeyCount');
+
+    function sync() {
+        if (!hdrRose || !roseKeyCount) return;
+        const val = parseInt(hdrRose.textContent, 10) || 0;
+        roseKeyCount.textContent = val;
+    }
+
+    sync();
+
+    window.addEventListener('rewards:update', sync);
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') sync();
+    });
+})();
