@@ -1,3 +1,5 @@
+let moveCount = 0; 
+
 // ===== Summon popups =====
 (function () {
     const popup_IDS = ['summonMain', 'GateKerei', 'GateRoseKerei', 'GateGoldKerei'];
@@ -122,10 +124,64 @@ function initPuzzleBoard() {
         // 랜덤 원소 배정
         const element = elements[Math.floor(Math.random() * elements.length)];
         slot.dataset.element = element;
-        slot.dataset.focused = "false"; // 포커스 상태 기본 false
         slot.style.backgroundImage = `url("icons/${element}.png")`;
         slot.style.backgroundSize = "cover";
     });
+}
+
+// === 퍼즐 유틸 함수 ===
+function areAdjacent(slot1, slot2) {
+    const slots = Array.from(document.querySelectorAll(".puzzle-slot"));
+    const index1 = slots.indexOf(slot1);
+    const index2 = slots.indexOf(slot2);
+
+    const cols = 6; // 6열
+    const row1 = Math.floor(index1 / cols), col1 = index1 % cols;
+    const row2 = Math.floor(index2 / cols), col2 = index2 % cols;
+
+    //대각선 허용return Math.abs(row1 - row2) <= 1 && Math.abs(col1 - col2) <= 1;
+    return (
+        (row1 === row2 && Math.abs(col1 - col2) === 1) || // 좌우
+        (col1 === col2 && Math.abs(row1 - row2) === 1)    // 상하
+    );
+}
+
+function swapSlots(slot1, slot2) {
+    const elem1 = slot1.dataset.element;
+    const elem2 = slot2.dataset.element;
+
+    // 데이터 교환
+    slot1.dataset.element = elem2;
+    slot2.dataset.element = elem1;
+
+    // 아이콘 갱신
+    resetSlotIcon(slot1);
+    resetSlotIcon(slot2);
+
+    // 이동 카운트 증가
+    moveCount++;
+    console.log(`이동 횟수: ${moveCount}`);
+
+    if (moveCount >= 3) {
+        moveCount = 0;
+        const board = getBoardState(); // ✅ 함수 이름 맞춤
+        const matches = findMatches(board);
+        if (matches.length > 0) {
+            console.log("성공", matches);
+            clearMatches(matches);
+            // TODO: 이 다음에 중력/새로 채우기 로직 들어감
+        }
+
+    } else {
+        console.log("매칭 탐색 보류 (3번째 이동 후 발동)");
+    }
+
+    // === 이동 끝나면 포커스 해제 ===
+    if (focusedSlot) {
+        resetSlotIcon(focusedSlot);
+        focusedSlot.classList.remove("focused");
+        focusedSlot = null;
+    }
 }
 
 let focusedSlot = null;
@@ -133,27 +189,23 @@ let focusedSlot = null;
 // 슬롯 클릭 이벤트
 document.querySelectorAll(".puzzle-slot").forEach(slot => {
     slot.addEventListener("click", (e) => {
-        e.stopPropagation(); // 이벤트 버블링 막기
+        e.stopPropagation(); // 슬롯 클릭 시 document 클릭 이벤트로 버블링 방지
 
-        // 기존 포커스 해제
-        if (focusedSlot && focusedSlot !== slot) {
+        // 이미 포커스된 슬롯이 있으면 처리
+        if (focusedSlot) {
+            if (areAdjacent(focusedSlot, slot)) {
+                swapSlots(focusedSlot, slot);
+            }
             resetSlotIcon(focusedSlot);
             focusedSlot.classList.remove("focused");
         }
 
         // 새 포커스 적용
-        if (focusedSlot === slot) {
-            // 같은 걸 다시 누르면 해제
-            resetSlotIcon(slot);
-            slot.classList.remove("focused");
-            focusedSlot = null;
-        } else {
-            setFocusIcon(slot);
-            slot.classList.add("focused");
-            focusedSlot = slot;
-        }
+        focusedSlot = slot;
+        focusedSlot.classList.add("focused");
     });
 });
+
 
 // 바깥 클릭 시 포커스 해제
 document.addEventListener("click", () => {
@@ -165,25 +217,120 @@ document.addEventListener("click", () => {
 });
 
 // 아이콘 변경 함수
-function setFocusIcon(slot) {
-    const element = slot.querySelector("img");
-    if (element) {
-        const src = element.getAttribute("src");
-        element.setAttribute("src", src.replace(".png", "p.png"));
-    }
-}
+// === 포커스 아이콘 교체 (배경이미지 방식) ===
 
 function resetSlotIcon(slot) {
-    const element = slot.querySelector("img");
-    if (element) {
-        const src = element.getAttribute("src");
-        element.setAttribute("src", src.replace("p.png", ".png"));
+    const element = slot.dataset.element;
+    if (!element) {
+        slot.style.backgroundImage = "none"; // element가 비었을 경우 확실히 제거
+        return;
     }
+    slot.style.backgroundImage = `url("icons/${element}.png")`;
+    slot.style.backgroundSize = "cover";
 }
-
 
 // 초기화 실행
 document.addEventListener("DOMContentLoaded", () => {
     initPuzzleBoard();
 });
+
+// 상, 하, 좌, 우, ↘, ↖, ↙, ↗
+const directions = [
+    [0, 1], [0, -1], [1, 0], [-1, 0],
+    [1, 1], [-1, -1], [1, -1], [-1, 1]
+];
+
+// 매칭 탐색 함수
+function findMatches(board) {
+    const matches = [];
+    const numRows = board.length;
+    const numCols = board[0].length;
+
+    // 방향 벡터: 가로, 세로, 대각선 ↘, 대각선 ↙
+    const directions = [
+        { dr: 0, dc: 1 },   // →
+        { dr: 1, dc: 0 },   // ↓
+        { dr: 1, dc: 1 },   // ↘
+        { dr: 1, dc: -1 }   // ↙
+    ];
+
+    const visited = Array.from({ length: numRows }, () =>
+        Array(numCols).fill(false)
+    );
+
+    for (let r = 0; r < numRows; r++) {
+        for (let c = 0; c < numCols; c++) {
+            const elem = board[r][c];
+            if (!elem) continue;
+
+            for (const { dr, dc } of directions) {
+                const group = [[r, c]];
+                let nr = r + dr;
+                let nc = c + dc;
+
+                while (
+                    nr >= 0 &&
+                    nr < numRows &&
+                    nc >= 0 &&
+                    nc < numCols &&
+                    board[nr][nc] === elem
+                ) {
+                    group.push([nr, nc]);
+                    nr += dr;
+                    nc += dc;
+                }
+
+                if (group.length >= 3) {
+                    matches.push(group);
+                }
+            }
+        }
+    }
+
+    return matches;
+}
+
+// 퍼즐판을 2차원 배열로 구성하는 헬퍼 (dataset.element 기반)
+function getBoardState() {
+    const slots = document.querySelectorAll(".puzzle-slot");
+    const rows = 6; // 세로
+    const cols = 5; // 가로
+    const board = [];
+
+    for (let r = 0; r < rows; r++) {
+        const row = [];
+        for (let c = 0; c < cols; c++) {
+            const idx = r * cols + c;
+            row.push(slots[idx].dataset.element);
+        }
+        board.push(row);
+    }
+    return board;
+}
+// === 매칭된 칸 폭파 ===
+function clearMatches(matches) {
+    const slots = document.querySelectorAll(".puzzle-slot");
+    const boardCols = 5; // 가로 5칸 고정
+
+    for (let chain of matches) {
+        for (let [r, c] of chain) {
+            const index = r * boardCols + c;
+            const slot = slots[index];
+
+            // 데이터 제거
+            slot.dataset.element = "";
+
+            // 아이콘 제거
+            slot.style.backgroundImage = "none";
+        }
+    }
+}
+
+function flattenMatches(matches) {
+    const set = new Set();
+    matches.forEach(group => {
+        group.forEach(([r, c]) => set.add(`${r},${c}`));
+    });
+    return Array.from(set).map(str => str.split(",").map(Number));
+}
 

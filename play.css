@@ -141,20 +141,17 @@ body.no-scroll {
   aspect-ratio: 1 / 1;
   background-color: #ffffff;
   border: 1px solid #ffffff;
-
-  /* 팔각형 모양 잘라내기 */
   clip-path: polygon(30% 0%, 70% 0%,
       100% 30%, 100% 70%,
       70% 100%, 30% 100%,
       0% 70%, 0% 30%);
 }
-/* 선택된 슬롯 강조 효과 */
+
 .puzzle-slot.focused {
   outline: 3px solid #ff0000;
-  /* 빨간 테두리 */
   outline-offset: -3px;
-  /* 안쪽으로 붙여서 자연스럽게 */
 }
+
 .skill-gauge {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -168,3 +165,4 @@ body.no-scroll {
   background-color: #e9fffe;
   border: 1px solid #dcdcdc;
 }
+
