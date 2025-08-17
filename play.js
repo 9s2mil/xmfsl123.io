@@ -160,20 +160,19 @@ function swapSlots(slot1, slot2) {
 
     // 이동 카운트 증가
     moveCount++;
-    console.log(`이동 횟수: ${moveCount}`);
 
-    if (moveCount >= 3) {
-        moveCount = 0;
-        const board = getBoardState(); // ✅ 함수 이름 맞춤
-        const matches = findMatches(board);
-        if (matches.length > 0) {
-            console.log("성공", matches);
-            clearMatches(matches);
-            // TODO: 이 다음에 중력/새로 채우기 로직 들어감
-        }
-
+    // 매칭 검사 (항상 실행)
+    const board = getBoardState();
+    const matches = findMatches(board);
+    if (matches.length > 0) {
+        applyHighlight(flattenMatches(matches));
     } else {
-        console.log("매칭 탐색 보류 (3번째 이동 후 발동)");
+        console.log("매칭 없음");
+    }
+
+    // 3번째 이동 후 → resolveBoard 전체 실행
+    if (moveCount >= 3) {
+        resolveBoard();   // 여기서 한 번만 처리
     }
 
     // === 이동 끝나면 포커스 해제 ===
@@ -183,6 +182,7 @@ function swapSlots(slot1, slot2) {
         focusedSlot = null;
     }
 }
+
 
 let focusedSlot = null;
 
@@ -243,58 +243,49 @@ const directions = [
 // 매칭 탐색 함수
 function findMatches(board) {
     const matches = [];
-    const numRows = board.length;
-    const numCols = board[0].length;
+    const rows = 5, cols = 6;
+    const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
 
-    // 방향 벡터: 가로, 세로, 대각선 ↘, 대각선 ↙
-    const directions = [
-        { dr: 0, dc: 1 },   // →
-        { dr: 1, dc: 0 },   // ↓
-        { dr: 1, dc: 1 },   // ↘
-        { dr: 1, dc: -1 }   // ↙
-    ];
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const element = board[r][c];
+            if (!element) continue;
 
-    const visited = Array.from({ length: numRows }, () =>
-        Array(numCols).fill(false)
-    );
+            directions.forEach(([dr, dc]) => {
+                let group = [[r, c]];
 
-    for (let r = 0; r < numRows; r++) {
-        for (let c = 0; c < numCols; c++) {
-            const elem = board[r][c];
-            if (!elem) continue;
-
-            for (const { dr, dc } of directions) {
-                const group = [[r, c]];
-                let nr = r + dr;
-                let nc = c + dc;
-
-                while (
-                    nr >= 0 &&
-                    nr < numRows &&
-                    nc >= 0 &&
-                    nc < numCols &&
-                    board[nr][nc] === elem
-                ) {
-                    group.push([nr, nc]);
-                    nr += dr;
-                    nc += dc;
+                // 가로(0,1), 세로(1,0)는 3개 검사
+                let required = (dr === 0 || dc === 0) ? 3 : 4;
+                for (let i = 1; i < required; i++) {
+                    const nr = r + dr * i, nc = c + dc * i;
+                    if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) break;
+                    if (board[nr][nc] === element) {
+                        group.push([nr, nc]);
+                    } else break;
                 }
 
-                if (group.length >= 3) {
+                // 방향별로 다른 기준 적용
+                if ((dr === 0 || dc === 0) && group.length >= 3) {
                     matches.push(group);
                 }
-            }
+                if ((dr !== 0 && dc !== 0) && group.length >= 4) {
+                    matches.push(group);
+                }
+            });
         }
     }
-
     return matches;
 }
+
+
+
+
 
 // 퍼즐판을 2차원 배열로 구성하는 헬퍼 (dataset.element 기반)
 function getBoardState() {
     const slots = document.querySelectorAll(".puzzle-slot");
-    const rows = 6; // 세로
-    const cols = 5; // 가로
+    const rows = 5; // 세로 고정
+    const cols = 6; // 가로 고정
     const board = [];
 
     for (let r = 0; r < rows; r++) {
@@ -307,24 +298,7 @@ function getBoardState() {
     }
     return board;
 }
-// === 매칭된 칸 폭파 ===
-function clearMatches(matches) {
-    const slots = document.querySelectorAll(".puzzle-slot");
-    const boardCols = 5; // 가로 5칸 고정
 
-    for (let chain of matches) {
-        for (let [r, c] of chain) {
-            const index = r * boardCols + c;
-            const slot = slots[index];
-
-            // 데이터 제거
-            slot.dataset.element = "";
-
-            // 아이콘 제거
-            slot.style.backgroundImage = "none";
-        }
-    }
-}
 
 function flattenMatches(matches) {
     const set = new Set();
@@ -334,3 +308,158 @@ function flattenMatches(matches) {
     return Array.from(set).map(str => str.split(",").map(Number));
 }
 
+// 매칭된 칸에 하이라이트 클래스 부여
+function applyHighlight(matches) {
+    const allSlots = document.querySelectorAll(".puzzle-slot");
+
+    if (matches.length === 0) {
+        return; // 기존 highlight 유지
+    }
+
+    // 기존 하이라이트 제거 후 다시 적용
+    allSlots.forEach(slot => slot.classList.remove("highlight"));
+
+    matches.forEach(([r, c]) => {
+        const idx = r * 6 + c; // 6열 기준 인덱스
+        const slot = allSlots[idx];
+        if (slot) slot.classList.add("highlight");
+    });
+}
+
+const board = getBoardState();
+const matches = findMatches(board);
+applyHighlight(flattenMatches(matches));
+
+
+window.addEventListener("load", () => {
+    const board = getBoardState();
+    const matches = findMatches(board);
+    applyHighlight(flattenMatches(matches));
+});
+
+function clearMatches(matches) {
+    const allSlots = document.querySelectorAll(".puzzle-slot");
+
+    matches.forEach(([r, c]) => {
+        const idx = r * 6 + c;
+        const slot = allSlots[idx];
+        if (slot) {
+            // 데이터와 아이콘 비움
+            slot.dataset.element = "";
+            slot.style.backgroundImage = "none";
+            slot.classList.remove("highlight");
+        }
+    });
+}
+
+function applyGravity() {
+    const rows = 5;
+    const cols = 6;
+    const allSlots = document.querySelectorAll(".puzzle-slot");
+
+    for (let c = 0; c < cols; c++) {
+        // 🔽 1) 현재 열의 블록들을 아래로 압축
+        const stack = [];
+        for (let r = 0; r < rows; r++) {
+            const idx = r * cols + c;
+            const slot = allSlots[idx];
+            if (slot.dataset.element) {
+                stack.push(slot.dataset.element);
+            }
+        }
+
+        // 🔽 2) 아래 행부터 다시 채움
+        for (let r = rows - 1; r >= 0; r--) {
+            const idx = r * cols + c;
+            const slot = allSlots[idx];
+
+            if (stack.length > 0) {
+                const elem = stack.pop();
+                slot.dataset.element = elem;
+                slot.style.backgroundImage = `url("icons/${elem}.png")`;
+                slot.style.backgroundSize = "cover";
+            } else {
+                // 비었으면 새 랜덤 생성
+                const newElem = getRandomElement();
+                slot.dataset.element = newElem;
+                slot.style.backgroundImage = `url("icons/${newElem}.png")`;
+                slot.style.backgroundSize = "cover";
+            }
+        }
+    }
+}
+
+
+function getRandomElement() {
+    const elements = ["l", "s", "m", "w", "e", "n"]; // 원소 종류
+    const rand = Math.floor(Math.random() * elements.length);
+    return elements[rand];
+}
+function refillTopRow() {
+    const cols = 6; // 0~5
+    const allSlots = document.querySelectorAll(".puzzle-slot");
+
+    for (let c = 0; c < cols; c++) {
+        const idx = 0 * cols + c;
+        const slot = allSlots[idx];
+
+        if (!slot.dataset.element) { // 비어있으면 랜덤 원소 투입
+            const newElem = getRandomElement();
+            slot.dataset.element = newElem;
+            slot.style.backgroundImage = `url("icons/${newElem}.png")`;
+        }
+    }
+}
+function resolveBoard() {
+    let boardChanged = true;
+
+    while (boardChanged) {
+        const board = getBoardState();
+        const matches = findMatches(board);
+        const flat = flattenMatches(matches);
+
+        if (flat.length > 0) {
+            clearMatches(flat);     // 제거
+            applyGravity();         // 중력
+            refillTopRow();         // 리필
+        } else {
+            boardChanged = false;   // 매칭 없으면 반복 종료
+        }
+    }
+
+    // 모든 연쇄 끝난 후 카운터 초기화
+    moveCount = 0;
+}
+function resolveBoardStep() {
+    const board = getBoardState();
+    const matches = findMatches(board);
+    const flat = flattenMatches(matches);
+
+    if (flat.length > 0) {
+        // 1) 하이라이트 표시
+        applyHighlight(flat);
+
+        // 2) 잠깐 보여준 뒤 폭파
+        setTimeout(() => {
+            clearMatches(flat);
+
+            // 3) 폭파 후 중력 적용
+            setTimeout(() => {
+                applyGravity();
+
+                // 4) 리필 후 재스캔
+                setTimeout(() => {
+                    resolveBoardStep(); // 재귀적으로 반복
+                }, 300); // 중력 후 텀
+            }, 500); // 폭파 후 텀
+        }, 300); // 하이라이트 유지 시간
+    } else {
+        // 모든 연쇄 종료
+        moveCount = 0;
+    }
+}
+
+// 기존 resolveBoard 호출부에서 이 함수로 교체
+function resolveBoard() {
+    resolveBoardStep();
+}

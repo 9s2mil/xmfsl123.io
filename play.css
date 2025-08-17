@@ -152,6 +152,21 @@ body.no-scroll {
   outline-offset: -3px;
 }
 
+.puzzle-slot.highlight {
+  box-shadow: 0 0 10px 5px gold inset, 0 0 20px gold;
+  border: 2px solid gold;   /* outline 대신 border 사용 */
+  z-index: 10;              /* 겹쳐도 위에 올라오도록 */
+}
+
+@keyframes glow {
+  from {
+    box-shadow: 0 0 5px gold;
+  }
+  to {
+    box-shadow: 0 0 20px gold;
+  }
+}
+
 .skill-gauge {
   display: grid;
   grid-template-columns: repeat(7, 1fr);

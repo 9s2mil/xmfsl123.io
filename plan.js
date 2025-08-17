@@ -742,3 +742,17 @@ document.addEventListener('dblclick', e => e.preventDefault());
         if (document.visibilityState === 'visible') sync();
     });
 })();
+
+function applyHighlight(matches) {
+    // 모든 슬롯에서 하이라이트 제거
+    document.querySelectorAll(".puzzle-slot").forEach(slot => {
+        slot.classList.remove("highlight");
+    });
+
+    // 매칭된 좌표에 다시 하이라이트 부여
+    matches.forEach(([r, c]) => {
+        const idx = r * 6 + c; // cols=6
+        const slot = document.querySelectorAll(".puzzle-slot")[idx];
+        if (slot) slot.classList.add("highlight");
+    });
+}
