@@ -226,7 +226,6 @@ document.addEventListener("click", () => {
 
 function resetSlotIcon(slot) {
     if (!slot) {
-        console.warn("resetSlotIcon: 대상 슬롯 없음");
         return;
     }
 

@@ -84,11 +84,12 @@ body.no-scroll {
 }
 
 .ally-slot {
+  position: relative;
+  /* 버튼 덮기용 기준 */
   aspect-ratio: 1 / 1;
   background-color: #ffffff;
   border: 1px solid #ffffff;
   display: flex;
-  /* 중앙 정렬 */
   justify-content: center;
   align-items: center;
 }
@@ -98,6 +99,18 @@ body.no-scroll {
   height: 100%;
   object-fit: contain;
 }
+
+.ally-button {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
 .card-slot {
   width: 50px;
   height: 50px;
@@ -157,13 +170,13 @@ body.no-scroll {
 }
 
 .puzzle-slot.focused {
-  outline: 3px solid #ff0000;
-  outline-offset: -3px;
+  outline: 9px solid #ff0000;
+  outline-offset: -9px;
 }
 
 .puzzle-slot.highlight {
   box-shadow: 0 0 10px 5px gold inset, 0 0 20px gold;
-  border: 2px solid gold;   /* outline 대신 border 사용 */
+  border: 3px solid gold;   /* outline 대신 border 사용 */
   z-index: 10;              /* 겹쳐도 위에 올라오도록 */
 }
 
