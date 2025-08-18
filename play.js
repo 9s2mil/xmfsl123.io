@@ -190,13 +190,12 @@ function swapSlots(slot1, slot2) {
         focusedSlot.classList.remove("focused");
         focusedSlot = null;
     }
-}
 
+}
 
 let focusedSlot = null;
 
 // 슬롯 클릭 이벤트
-// === 퍼즐 슬롯 클릭 이벤트 ===
 document.querySelectorAll(".puzzle-slot").forEach(slot => {
     slot.addEventListener("click", (e) => {
         e.stopPropagation(); // 슬롯 클릭 시 document 클릭 이벤트로 버블링 방지
@@ -206,18 +205,13 @@ document.querySelectorAll(".puzzle-slot").forEach(slot => {
             if (areAdjacent(focusedSlot, slot)) {
                 swapSlots(focusedSlot, slot);
             }
-            // 🔒 안전 체크 추가
-            if (focusedSlot) {
-                resetSlotIcon(focusedSlot);
-                focusedSlot.classList.remove("focused");
-            }
+            resetSlotIcon(focusedSlot);
+            focusedSlot.classList.remove("focused");
         }
 
         // 새 포커스 적용
         focusedSlot = slot;
-        if (focusedSlot) {
-            focusedSlot.classList.add("focused");
-        }
+        focusedSlot.classList.add("focused");
     });
 });
 
@@ -229,9 +223,6 @@ document.addEventListener("click", () => {
         focusedSlot = null;
     }
 });
-
-// 아이콘 변경 함수
-// === 포커스 아이콘 교체 (배경이미지 방식) ===
 
 function resetSlotIcon(slot) {
     if (!slot) {
