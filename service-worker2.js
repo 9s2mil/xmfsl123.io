@@ -1,4 +1,3 @@
-// service-worker2.js
 const CACHE_NAME_PLAN = 'pwa-plan-v2';
 
 // 사전 캐시
@@ -11,7 +10,9 @@ const ASSETS_PLAN = [
   './play.js',
   './manifest.json',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './monsters.json',
+  './heroes.json'
 ];
 
 self.addEventListener('install', (event) => {
@@ -62,6 +63,11 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    fetch(request).catch(() => caches.match(request))
+    fetch(event.request).then(response => {
+      const resClone = response.clone();
+      caches.open(CACHE_NAME_PLAN).then(cache => cache.put(event.request, resClone));
+      return response;
+    })
   );
+
 });

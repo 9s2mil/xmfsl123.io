@@ -1,5 +1,6 @@
 let moveCount = 0; 
-
+let monsters = [];
+let monstersData = []; 
 // ===== Summon popups =====
 (function () {
     const popup_IDS = ['summonMain', 'GateKerei', 'GateRoseKerei', 'GateGoldKerei'];
@@ -81,10 +82,16 @@ let moveCount = 0;
 
 // HP 상태 관리
 const HP = {
+    base: 1000,  // 고정 기본값
     max: 1000,
     current: 1000,
 
     init() {
+        // 아군 전체 체력 합산 후 반영
+        const alliesHp = allies.slice(1).reduce((sum, u) => sum + (u ? u.maxHp : 0), 0);
+        this.max = this.base + alliesHp;
+        this.current = this.base + alliesHp;
+
         this.updateBar();
     },
 
@@ -110,6 +117,10 @@ const HP = {
         }
     }
 };
+
+document.addEventListener("DOMContentLoaded", () => {
+    HP.init();
+});
 
 document.addEventListener("DOMContentLoaded", () => {
     HP.init();
@@ -166,9 +177,7 @@ function swapSlots(slot1, slot2) {
     const matches = findMatches(board);
     if (matches.length > 0) {
         applyHighlight(flattenMatches(matches));
-    } else {
-        console.log("매칭 없음");
-    }
+    } else { }
 
     // 3번째 이동 후 → resolveBoard 전체 실행
     if (moveCount >= 3) {
@@ -187,6 +196,7 @@ function swapSlots(slot1, slot2) {
 let focusedSlot = null;
 
 // 슬롯 클릭 이벤트
+// === 퍼즐 슬롯 클릭 이벤트 ===
 document.querySelectorAll(".puzzle-slot").forEach(slot => {
     slot.addEventListener("click", (e) => {
         e.stopPropagation(); // 슬롯 클릭 시 document 클릭 이벤트로 버블링 방지
@@ -196,16 +206,20 @@ document.querySelectorAll(".puzzle-slot").forEach(slot => {
             if (areAdjacent(focusedSlot, slot)) {
                 swapSlots(focusedSlot, slot);
             }
-            resetSlotIcon(focusedSlot);
-            focusedSlot.classList.remove("focused");
+            // 🔒 안전 체크 추가
+            if (focusedSlot) {
+                resetSlotIcon(focusedSlot);
+                focusedSlot.classList.remove("focused");
+            }
         }
 
         // 새 포커스 적용
         focusedSlot = slot;
-        focusedSlot.classList.add("focused");
+        if (focusedSlot) {
+            focusedSlot.classList.add("focused");
+        }
     });
 });
-
 
 // 바깥 클릭 시 포커스 해제
 document.addEventListener("click", () => {
@@ -220,14 +234,21 @@ document.addEventListener("click", () => {
 // === 포커스 아이콘 교체 (배경이미지 방식) ===
 
 function resetSlotIcon(slot) {
+    if (!slot) {
+        console.warn("resetSlotIcon: 대상 슬롯 없음");
+        return;
+    }
+
     const element = slot.dataset.element;
     if (!element) {
         slot.style.backgroundImage = "none"; // element가 비었을 경우 확실히 제거
         return;
     }
+
     slot.style.backgroundImage = `url("icons/${element}.png")`;
     slot.style.backgroundSize = "cover";
 }
+
 
 // 초기화 실행
 document.addEventListener("DOMContentLoaded", () => {
@@ -277,10 +298,6 @@ function findMatches(board) {
     return matches;
 }
 
-
-
-
-
 // 퍼즐판을 2차원 배열로 구성하는 헬퍼 (dataset.element 기반)
 function getBoardState() {
     const slots = document.querySelectorAll(".puzzle-slot");
@@ -298,7 +315,6 @@ function getBoardState() {
     }
     return board;
 }
-
 
 function flattenMatches(matches) {
     const set = new Set();
@@ -329,7 +345,6 @@ function applyHighlight(matches) {
 const board = getBoardState();
 const matches = findMatches(board);
 applyHighlight(flattenMatches(matches));
-
 
 window.addEventListener("load", () => {
     const board = getBoardState();
@@ -389,7 +404,6 @@ function applyGravity() {
     }
 }
 
-
 function getRandomElement() {
     const elements = ["l", "s", "m", "w", "e", "n"]; // 원소 종류
     const rand = Math.floor(Math.random() * elements.length);
@@ -410,6 +424,7 @@ function refillTopRow() {
         }
     }
 }
+
 function resolveBoard() {
     let boardChanged = true;
 
@@ -430,6 +445,8 @@ function resolveBoard() {
     // 모든 연쇄 끝난 후 카운터 초기화
     moveCount = 0;
 }
+
+// 기존 resolveBoardStep 내부 수정
 function resolveBoardStep() {
     const board = getBoardState();
     const matches = findMatches(board);
@@ -439,27 +456,236 @@ function resolveBoardStep() {
         // 1) 하이라이트 표시
         applyHighlight(flat);
 
-        // 2) 잠깐 보여준 뒤 폭파
+        // ✅ 2) 원소별 매칭 개수 계산
+        const matchResults = {};
+        flat.forEach(([r, c]) => {
+            const idx = r * 6 + c;
+            const slot = document.querySelectorAll(".puzzle-slot")[idx];
+            const elem = slot.dataset.element;
+            if (!elem) return;
+            matchResults[elem] = (matchResults[elem] || 0) + 1;
+        });
+
+        // ✅ 3) 전투 처리 함수 호출
+        applyCombatResults(matchResults);
+
+        // 4) 잠깐 보여준 뒤 폭파
         setTimeout(() => {
             clearMatches(flat);
 
-            // 3) 폭파 후 중력 적용
+            // 5) 중력 적용
             setTimeout(() => {
                 applyGravity();
 
-                // 4) 리필 후 재스캔
+                // 6) 리필 후 재스캔
                 setTimeout(() => {
-                    resolveBoardStep(); // 재귀적으로 반복
-                }, 300); // 중력 후 텀
-            }, 500); // 폭파 후 텀
-        }, 300); // 하이라이트 유지 시간
+                    resolveBoardStep();
+                }, 300);
+            }, 500);
+        }, 300);
     } else {
         // 모든 연쇄 종료
         moveCount = 0;
+
+        // 콘솔에 이번 턴 로그 출력
+        console.log("=== 전투 로그 ===");
+        combatLog.forEach(line => console.log(line));
+
+        // 로그 초기화 (턴마다 새로 기록 시작)
+        combatLog = [];
     }
 }
+
 
 // 기존 resolveBoard 호출부에서 이 함수로 교체
 function resolveBoard() {
     resolveBoardStep();
 }
+
+// ======= Monsters Mapping Example =======
+// 기존 loadMonsters 최종형태
+async function loadMonsters() {
+    try {
+        const response = await fetch("monsters.json");
+        const monsters = await response.json();
+
+
+        // ✅ 데이터 전역 저장
+        monstersData = monsters;
+
+        // ✅ 데이터 로드가 끝난 후 슬롯에 배치
+        placeMonsterInSlot("monster-left", monstersData[0]);
+        placeMonsterInSlot("monster-center", monstersData[1]);
+        placeMonsterInSlot("monster-right", monstersData[2]);
+    } catch (error) {
+        console.error("몬스터 데이터 로드 실패:", error);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadMonsters(); // JSON 로드 완료 후 슬롯 배치까지 실행
+});
+
+function renderMonsters() {
+    const container = document.querySelector(".monster-zone");
+    if (!container) return;
+
+    container.innerHTML = ""; // 초기화
+    monsters.forEach(mon => {
+        const slot = document.createElement("div");
+        slot.className = "monster-slot " + mon.position;
+
+        slot.innerHTML = `
+            <img src="icons/${mon.illustration}" alt="${mon.name}">
+            <p>${mon.name}</p>
+            <p>HP: ${mon.baseStats.hp}, ATK: ${mon.baseStats.atk}</p>
+        `;
+        container.appendChild(slot);
+    });
+}
+
+function setEnemySlot(slotId, monster) {
+    const slot = document.getElementById(slotId);
+    if (!slot) return;
+
+    slot.innerHTML = `
+    <div class="monster">
+      <img src="images/${monster.illustration}" alt="${monster.name}" />
+      <p class="name">${monster.name}</p>
+      <p class="stats">HP: ${monster.baseStats.hp} / ATK: ${monster.baseStats.atk}</p>
+    </div>
+  `;
+}
+
+// 페이지 로드 시 실행
+document.addEventListener("DOMContentLoaded", loadMonsters);
+
+function mapMonstersToSlots(monsters) {
+    const slots = document.querySelectorAll('.enemy-slot');
+    slots.forEach((slot, idx) => {
+        const monster = monsters[idx % monsters.length];
+        if (monster) {
+            slot.innerHTML = `<img src="${monster.image}" alt="${monster.name}">`;
+
+        } else {
+            console.log(`[몬스터 매핑] 슬롯 ${idx} → 비어 있음`);
+        }
+    });
+}
+
+function placeMonsterInSlot(slotId, monster) {
+    const slot = document.getElementById(slotId);
+    if (!slot) {
+        return;
+    }
+    if (!monster) {
+        return;
+    }
+
+    // illustration 필드 사용
+    if (!monster.illustration) {
+        return;
+    }
+
+    slot.innerHTML = `
+        <img src="icons/${monster.illustration}" alt="${monster.name}" style="width:100%; height:100%;">
+        <div class="monster-info">❤ ${monster.baseStats.hp} / ⚔ ${monster.baseStats.attack}</div>
+    `;
+}
+
+renderMonsters(monsters);
+
+// 임시: 앞의 3마리만 매핑
+placeMonsterInSlot("monster-left", monsters[0]);
+placeMonsterInSlot("monster-center", monsters[1]);
+placeMonsterInSlot("monster-right", monsters[2]);
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadMonsters();
+});
+
+// 아군 팀 데이터
+const allies = [null,
+    { id: 2, name: "현무", element: "n", attack: 20, heal: 5, maxHp: 100, hp: 100 },
+    { id: 3, name: "주작", element: "s", attack: 30, heal: 5, maxHp: 100, hp: 100 },
+    { id: 4, name: "청룡", element: "e", attack: 25, heal: 5, maxHp: 100, hp: 100 },
+    { id: 5, name: "백호", element: "w", attack: 28, heal: 5, maxHp: 100, hp: 100 },
+    { id: 6, name: "기린", element: "m", attack: 35, heal: 5, maxHp: 100, hp: 100 }
+];
+
+// 전투 로그 관리
+let combatLog = [];
+
+function getTotalHP() {
+    return allies.slice(1).reduce((sum, u) => sum + u.hp, 0);
+}
+
+// ===== 아군 HP바 업데이트 =====
+function updateAllyHPBar() {
+    const totalHp = allies.slice(1).reduce((sum, u) => sum + u.hp, 0);
+    const totalMaxHp = allies.slice(1).reduce((sum, u) => sum + u.maxHp, 0);
+    const percent = (totalHp / totalMaxHp) * 100;
+
+    const fill = document.querySelector(".hp-fill");
+    const text = document.querySelector(".hp-text");
+
+    if (fill) fill.style.width = percent + "%";
+    if (text) text.textContent = `${totalHp} / ${totalMaxHp}`;
+}
+
+// ===== 전투 처리 =====
+function applyCombatResults(matches) {
+    console.log("=== 전투 로그 ===");
+    let totalDamage = 0;
+    let totalHeal = 0;
+
+    for (const [element, count] of Object.entries(matches)) {
+        if (!count) continue;
+
+        if (element === "l") {
+            // 생 = 회복
+            const heal = allies.slice(1).reduce((sum, u) => sum + (u ? u.heal * count : 0), 0);
+            totalHeal += heal;
+            console.log(`💚 생(${count}) → 아군 전체 ${heal} 회복`);
+            HP.changeHP(heal);
+        } else {
+            // 속성 공격
+            const idx = elementMap[element];
+            const unit = allies[idx];
+            if (unit) {
+                const dmg = unit.atk * count;
+                totalDamage += dmg;
+                console.log(`⚔️ ${unit.name} ${element.toUpperCase()}(${count}) → ${dmg} 데미지`);
+            }
+        }
+    }
+
+    console.log(`총합 ▶ 💚회복: ${totalHeal}, ⚔️공격: ${totalDamage}`);
+}
+// 원소 → 아군 슬롯 매핑
+const elementMap = {
+    l: null, // life = 회복 전용 (캐릭터 없음)
+    m: 6,    // mid = 기린 (일) → 6번 슬롯
+    n: 2,    // north = 현무 (월) → 2번 슬롯
+    e: 4,    // east = 청룡 (수) → 4번 슬롯
+    w: 5,    // west = 백호 (목) → 5번 슬롯
+    s: 3     // south = 주작 (화) → 3번 슬롯
+};
+// 아군 총 HP 계산
+function sumAlliesHp() {
+    if (!Array.isArray(allies)) return 0;
+    return allies.reduce((sum, ally) => {
+        if (!ally || typeof ally.hp !== "number") return sum;
+        return sum + ally.hp;
+    }, 0);
+}
+
+// 초기 세팅
+document.addEventListener("DOMContentLoaded", () => {
+    const baseHp = 1000;
+    const alliesHp = sumAlliesHp();
+    HP.max = baseHp + alliesHp;
+    HP.current = HP.max; // 시작 시 풀체력
+    HP.updateBar();
+});
+
