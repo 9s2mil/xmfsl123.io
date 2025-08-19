@@ -60,7 +60,7 @@ body.no-scroll {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #edecec;
+  background: #f0eeee;
 }
 
 .enemy-grid {
@@ -128,12 +128,12 @@ body.no-scroll {
   border: 2px solid #645959;
   border-radius: 5px;
   overflow: hidden;
-  
+  z-index: 5000;
 }
 
 .hp-fill {
   height: 100%;
-  background: rgb(252, 226, 226);
+  background: rgb(255, 67, 67);
   width: 100%;
   transition: width 0.3s ease;
   position: relative;
@@ -170,12 +170,12 @@ body.no-scroll {
 }
 
 .puzzle-slot.focused {
-  outline: 9px solid #ff0000;
-  outline-offset: -9px;
+  outline: 4px solid #c50000;
+  outline-offset: -4px;
 }
 
 .puzzle-slot.highlight {
-  box-shadow: 0 0 10px 5px gold inset, 0 0 20px gold;
+  box-shadow: 0 0 10px 5px rgb(223, 189, 0) inset, 0 0 20px rgb(205, 174, 0);
   border: 3px solid gold;   /* outline 대신 border 사용 */
   z-index: 10;              /* 겹쳐도 위에 올라오도록 */
 }
@@ -199,7 +199,117 @@ body.no-scroll {
 }
 
 .skill-segment {
-  background-color: #e9fffe;
+  background-color: #979797;
   border: 1px solid #dcdcdc;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
+.skill-segment.active {
+  background-color: #67fff7;
+}
+
+
+/* === 공통 속성 === */
+.damage-indicator,
+.heal-indicator {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-weight: bold;
+  font-size: 1.2em;
+  padding: 4px 8px;
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 5000;
+}
+
+/* === 데미지 전용 === */
+.damage-indicator {
+  color: #c00;
+  background: rgba(255, 0, 0, 0.1);
+  top: -20px;
+  /* ← 시작 위치: 평소보다 10px 위 */
+  animation: floatUpDamage 1.2s ease-out forwards;
+  /* 새로운 애니메이션 */
+}
+#h1 .damage-indicator {
+  color: deeppink;
+  /* 또는 rosybrown, hotpink 등 로즈골드 계열 중 택일 */
+}
+#h2 .damage-indicator {
+  color: purple;
+}
+
+/* 현무 */
+#h3 .damage-indicator {
+  color: crimson;
+}
+
+/* 주작 */
+#h4 .damage-indicator {
+  color: royalblue;
+}
+
+/* 청룡 */
+#h5 .damage-indicator {
+  color: green;
+}
+
+/* 백호 */
+#h6 .damage-indicator {
+  color: goldenrod;
+}
+
+/* 기린 */
+/* === 힐 전용 === */
+.heal-indicator {
+  color: #0a0;
+  background: rgba(0, 255, 0, 0.1);
+  top: -10px;
+  animation: none;
+}
+
+/* === 총 회복량 (바 위 고정) === */
+.heal-indicator-bar {
+  position: fixed;
+  transform: translateX(-50%) translateY(15px);
+  font-weight: bold;
+  font-size: 1em;
+  padding: 0 10px;
+  color: #0a0;
+  background: rgba(0, 255, 0, 0.2);
+  border-radius: 8px;
+  animation: floatUpHealBar 1.2s ease-out forwards;
+  pointer-events: none;
+  z-index: 5000;
+}
+
+/* === 데미지 이펙트: 위로 15px 떠오름 === */
+@keyframes floatUpDamage {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    /* 시작 지점: top -20px */
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-15px);
+    /* ↑15px 위로 이동 */
+  }
+}
+
+
+.monster-slot {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.monster-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
