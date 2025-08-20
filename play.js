@@ -1,8 +1,9 @@
 let moveCount = 0; 
 let turnMovesMax = 3;       // 한 턴 최대 이동 횟수 (기본 3)
 let turnMovesLeft = turnMovesMax;
+let isResolving = false;
 
-// ===== Summon popups =====
+// ===== Summon popups 현재는 사용안함 =====
 (function () {
     const popup_IDS = ['summonMain', 'GateKerei', 'GateRoseKerei', 'GateGoldKerei'];
     let current = null;
@@ -83,16 +84,15 @@ let turnMovesLeft = turnMovesMax;
 
 // HP 상태 관리
 const HP = {
-    base: 1000,  // 고정 기본값
-    max: 1000,
-    current: 1000,
+    base: 0,
+    max: 0,
+    current: 0,
 
     init() {
-        // 아군 전체 체력 합산 후 반영
-        const alliesHp = allies.slice(1).reduce((sum, u) => sum + (u ? u.maxHp : 0), 0);
+        // 리더 포함 전원 합산 (slice(1) 쓰지 말 것)
+        const alliesHp = allies.reduce((sum, u) => sum + (u ? u.maxHp : 0), 0);
         this.max = this.base + alliesHp;
-        this.current = this.base + alliesHp;
-
+        this.current = this.max;
         this.updateBar();
     },
 
@@ -109,19 +109,10 @@ const HP = {
         const percent = (this.current / this.max) * 100;
         const fill = document.querySelector(".hp-fill");
         const text = document.querySelector(".hp-text");
-
-        if (fill) {
-            fill.style.width = percent + "%";
-        }
-        if (text) {
-            text.textContent = `${this.current} / ${this.max}`;
-        }
+        if (fill) fill.style.width = percent + "%";
+        if (text) text.textContent = `${this.current} / ${this.max}`;
     }
 };
-
-document.addEventListener("DOMContentLoaded", () => {
-    HP.init();
-});
 
 document.addEventListener("DOMContentLoaded", () => {
     HP.init();
@@ -178,12 +169,19 @@ function swapSlots(slot1, slot2) {
     updateTurnGauge();
 
     // 턴 소모 처리
+    // ✅ 유일한 턴 종료 트리거: 3돌이 끝나 turnMovesLeft가 0이 된 순간
     if (turnMovesLeft <= 0) {
-        resolveBoard();  // 1턴 종료 후 처리
-        turnMovesLeft = turnMovesMax; // 턴 리셋
-        setTimeout(() => {
+        // 로즈키 차감(성공해야 턴 종료)
+        if (typeof useTurn === 'function' ? useTurn() : true) {
+            if (!isResolving) {
+                isResolving = true;
+                resolveBoard(); // 연쇄 및 후처리 시작
+            }
+        } else {
+            // 키 부족 등으로 턴 종료 불가 → 한 칸 복구
+            turnMovesLeft = 1;
             updateTurnGauge();
-        }, 1000);
+        }
     }
 
     // 매칭 검사 (항상 실행)
@@ -194,9 +192,20 @@ function swapSlots(slot1, slot2) {
     } else { }
 
     // 3번째 이동 후 → resolveBoard 전체 실행
-    if (moveCount >= 3) {
-        resolveBoard();   // 여기서 한 번만 처리
-    }
+    // if (moveCount >= 3) {
+    //     resolveBoard();   // 여기서 한 번만 처리
+    // }
+    // if (moveCount >= 3 && useTurn()) {
+    //     resolveBoard();
+    //     moveCount = 0;
+    // }
+}
+
+function updateRoseKeyUI() {
+    const header = document.getElementById("hdrRose");
+    const adventure = document.getElementById("roseKeyCount");
+    if (header) header.textContent = state.roseTotal;
+    if (adventure) adventure.textContent = state.roseTotal;
 }
 
 let focusedSlot = null;
@@ -490,12 +499,21 @@ function resolveBoardStep() {
         // 모든 연쇄 종료
         moveCount = 0;
 
-        // 콘솔에 이번 턴 로그 출력
-        // console.log("=== 전투 로그 ===");
+        // (있는 경우) 이번 턴 로그 출력/초기화
         combatLog.forEach(line => console.log(line));
-
-        // 로그 초기화 (턴마다 새로 기록 시작)
         combatLog = [];
+
+        // ✅ 이 턴에 '정확히 1번'만 스킬 쿨다운 진행
+        if (typeof onTurnEnded_ForSkills === 'function') {
+            onTurnEnded_ForSkills();
+        }
+
+        // ✅ 다음 턴 준비: 게이지/표시 리셋
+        turnMovesLeft = turnMovesMax;
+        updateTurnGauge();
+
+        // ✅ resolveBoard 재진입 가능 상태로 복귀
+        isResolving = false;
     }
 }
 
@@ -525,15 +543,12 @@ function getTotalHP() {
 
 // ===== 아군 HP바 업데이트 =====
 function updateAllyHPBar() {
-    const totalHp = allies.slice(1).reduce((sum, u) => sum + u.hp, 0);
-    const totalMaxHp = allies.slice(1).reduce((sum, u) => sum + u.maxHp, 0);
-    const percent = (totalHp / totalMaxHp) * 100;
-
     const fill = document.querySelector(".hp-fill");
     const text = document.querySelector(".hp-text");
+    const percent = (HP.current / HP.max) * 100;
 
     if (fill) fill.style.width = percent + "%";
-    if (text) text.textContent = `${totalHp} / ${totalMaxHp}`;
+    if (text) text.textContent = `${HP.current} / ${HP.max}`;
 }
 
 // ===== 전투 처리 =====
@@ -618,6 +633,25 @@ function updateAllyHPBar() {
 //         effects.forEach(fn => fn());
 //     });
 // }
+
+window.addEventListener('DOMContentLoaded', () => {
+    const roseUI = document.getElementById('roseKeyCount');
+    const hdrRose = document.getElementById('hdrRose');
+
+    // 우선 로컬에서 불러오기 시도
+    let val = loadRoseKeyCount();
+
+    // 로컬에 값이 없고, hdrRose에 값이 있으면 → 그걸 복사해 초기화
+    if ((val === 0 || isNaN(val)) && hdrRose) {
+        val = parseInt(hdrRose.textContent, 10) || 0;
+        saveRoseKeyCount(val); // ← 최초 진입 시 저장
+    }
+
+    // UI 반영
+    if (roseUI) roseUI.textContent = val;
+    if (hdrRose) hdrRose.textContent = val;
+});
+
 function applyCombatResults(matches) {
     let totalDamage = 0;
     let totalHeal = 0;
@@ -722,7 +756,7 @@ function sumAlliesHp() {
 
 // 초기 세팅
 document.addEventListener("DOMContentLoaded", () => {
-    const baseHp = 1000;
+    const baseHp = 0;
     const alliesHp = sumAlliesHp();
     HP.max = baseHp + alliesHp;
     HP.current = HP.max; // 시작 시 풀체력
@@ -757,3 +791,320 @@ function showCombatEffect(index, value, isHeal = false) {
         indicator.remove();
     }, 2500);
 }
+
+function saveRoseKeyCount(count) {
+    localStorage.setItem('roseKeyCount', count);
+}
+
+function loadRoseKeyCount() {
+    const saved = parseInt(localStorage.getItem('roseKeyCount'), 10);
+    return isNaN(saved) ? 0 : saved;
+}
+
+function useTurn() {
+    const roseUI = document.getElementById('roseKeyCount');
+    const hdrRose = document.getElementById('hdrRose');
+
+    let current = parseInt(roseUI.textContent, 10) || 0;
+
+    if (current <= 0) {
+        alert("로즈키가 부족합니다!");
+        return false;
+    }
+
+    current--;
+    roseUI.textContent = current;
+    if (hdrRose) hdrRose.textContent = current;
+
+    saveRoseKeyCount(current); // ← 새로 추가된 부분
+
+    return true;
+}
+
+/* ======================= Allies: Skill Cooldown Fields ======================= */
+/* 각 캐릭터에 스킬 쿨타임(최대/남은), 준비 여부, 잠금 여부 필드 부여 */
+const SKILL_COOLDOWN_DEFAULTS = {
+    1: 2,   // 리더: 스킬 없음
+    2: 2,   // 현무: 2턴
+    3: 3,   // 주작: 3턴
+    4: 4,   // 청룡: 4턴 
+    5: 5,   // 백호: 5턴
+    6: 7    // 기린: 7턴
+};
+
+allies.forEach(a => {
+    const max = SKILL_COOLDOWN_DEFAULTS[a.id] ?? 0;
+    a.cooldownMax = max;
+    a.cooldownLeft = max > 0 ? max : 0;
+    a.skillReady = false;
+    a.locked = false;   // 잠금/봉인 상태 기본 false
+});
+
+/* ======================= Ally UI Overlays & Main Click ======================= */
+/* ally-slot 위에 2개의 오버레이를 동적으로 부착:
+   - LockOverlay: 잠금 시 아이콘 가림/클릭 차단
+   - SkillHalo: 스킬 준비 시 메카블루 테두리(시각 전용, 포인터 통과)
+   메인 클릭: 잠금이면 무시, 준비면 스킬창, 아니면 상태창 */
+
+function initAllyOverlays() {
+    const slots = document.querySelectorAll(".ally-slot");
+    slots.forEach((slot, idx) => {
+        const ally = allies[idx]; if (!ally) return;
+
+        // 잠금 오버레이
+        let lock = slot.querySelector(".ally-lock-overlay");
+        if (!lock) {
+            lock = document.createElement("div");
+            lock.className = "ally-lock-overlay";
+            Object.assign(lock.style, {
+                position: "absolute", inset: "0", background: "rgba(0,0,0,0.65)",
+                display: "none", zIndex: "3", backdropFilter: "blur(1px)",
+                pointerEvents: "auto" // 잠금 시 클릭 차단
+            });
+            // 잠금 아이콘(간단)
+            const icon = document.createElement("div");
+            Object.assign(icon.style, {
+                position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)",
+                fontSize: "20px", color: "#ddd"
+            });
+            icon.textContent = "🔒";
+            lock.appendChild(icon);
+            slot.style.position = slot.style.position || "relative";
+            slot.appendChild(lock);
+        }
+
+        // 스킬 준비 테두리
+        let halo = slot.querySelector(".ally-skill-halo");
+        if (!halo) {
+            halo = document.createElement("div");
+            halo.className = "ally-skill-halo";
+            Object.assign(halo.style, {
+                position: "absolute", inset: "0", border: "2px solid #00B8FF",
+                borderRadius: "10px", boxShadow: "0 0 12px #00B8FF",
+                display: "none", zIndex: "2", pointerEvents: "none" // 클릭 통과
+            });
+            slot.style.position = slot.style.position || "relative";
+            slot.appendChild(halo);
+        }
+
+        // 메인 클릭(버튼 역할)
+        slot.addEventListener("click", () => {
+            if (ally.locked) return; // 봉인 시 무시
+            if (ally.cooldownMax > 0 && ally.skillReady) {
+                openSkillWindow(ally); // 스킬창
+            } else {
+                openStatusWindow(ally); // 상태창
+            }
+        });
+    });
+
+    updateAllAllyUI();
+}
+
+/* ======================= UI State Updates ======================= */
+function updateAllAllyUI() {
+    const slots = document.querySelectorAll(".ally-slot");
+    slots.forEach((slot, idx) => updateAllyUI(slot, allies[idx]));
+}
+
+function updateAllyUI(slot, ally) {
+    if (!slot || !ally) return;
+    const lock = slot.querySelector(".ally-lock-overlay");
+    const halo = slot.querySelector(".ally-skill-halo");
+
+    // 잠금 표시
+    if (lock) lock.style.display = ally.locked ? "block" : "none";
+
+    // 스킬 준비 표시(깜빡임)
+    if (halo) {
+        if (ally.skillReady) {
+            halo.style.display = "block";
+            halo.style.animation = "allyHaloPulse 1s infinite";
+        } else {
+            halo.style.display = "none";
+            halo.style.animation = "none";
+        }
+    }
+}
+
+/* ======================= Cooldown Progress & Skill Use ======================= */
+/* 턴 종료 시 호출: 쿨타임 진행 & 준비 상태 갱신 */
+function progressSkillCooldowns() {
+    allies.forEach(a => {
+        if (a.locked || a.cooldownMax <= 0) return;
+        if (a.skillReady) return; // 이미 준비완료면 유지
+        a.cooldownLeft = Math.max(0, a.cooldownLeft - 1);
+        if (a.cooldownLeft === 0) a.skillReady = true;
+    });
+    updateAllAllyUI();
+}
+
+/* 스킬 사용 시 호출: 쿨타임 리셋 */
+function consumeSkill(ally) {
+    if (!ally || ally.cooldownMax <= 0) return;
+    ally.skillReady = false;
+    ally.cooldownLeft = ally.cooldownMax;
+    updateAllAllyUI();
+}
+
+/* 잠금/봉인 토글(외부 시스템에서 호출) */
+function setAllyLocked(allyId, locked) {
+    const a = allies.find(x => x && x.id === allyId); if (!a) return;
+    a.locked = !!locked;
+    updateAllAllyUI();
+}
+
+/* 쿨타임 수동 설정(필요시) */
+function setAllyCooldown(allyId, max, left = max) {
+    const a = allies.find(x => x && x.id === allyId); if (!a) return;
+    a.cooldownMax = Math.max(0, max | 0);
+    a.cooldownLeft = Math.max(0, Math.min(a.cooldownMax, left | 0));
+    a.skillReady = (a.cooldownMax > 0 && a.cooldownLeft === 0);
+    updateAllAllyUI();
+}
+
+/* ======================= Hooks (초기화 & 턴 종료 연동) ======================= */
+document.addEventListener("DOMContentLoaded", () => {
+    initAllyOverlays();
+});
+
+/* ★ 턴 종료 시점에 아래 함수를 반드시 호출하세요.
+   - 예) resolveBoard() 마지막(연쇄 종료 후)에서 progressSkillCooldowns()
+*/
+function onTurnEnded_ForSkills() {
+    progressSkillCooldowns();
+}
+
+/* ======================= Stubs: 창 오픈 함수 ======================= */
+/* 실제 UI 연동부는 프로젝트 규칙에 맞게 교체 */
+function openStatusWindow(ally) {
+    // TODO: 상태창 열기 (이름/공격/체력/쿨타임 등 표시)
+    console.log(`[상태창] ${ally.name} HP:${ally.hp}/${ally.maxHp} CD:${ally.cooldownLeft}/${ally.cooldownMax}`);
+}
+function openSkillWindow(ally) {
+    // TODO: 스킬창 열기 → 사용 확정 시 consumeSkill(ally) 호출
+    console.log(`[스킬창] ${ally.name} 스킬 사용 가능!`);
+    // 예시: 사용 즉시 소비하려면 아래 한 줄
+    // consumeSkill(ally);
+}
+
+/* ======================= Inline Keyframes (JS 삽입) ======================= */
+(function injectHaloKeyframes() {
+    const id = "allyHaloPulseKeyframes";
+    if (document.getElementById(id)) return;
+    const style = document.createElement("style");
+    style.id = id;
+    style.textContent = `
+  @keyframes allyHaloPulse {
+    0% { box-shadow: 0 0 6px #00B8FF; transform: scale(1.00); }
+    50%{ box-shadow: 0 0 16px #00B8FF; transform: scale(1.02); }
+    100%{ box-shadow: 0 0 6px #00B8FF; transform: scale(1.00); }
+  }`;
+    document.head.appendChild(style);
+})();
+
+/* ======================= Modal Helpers ======================= */
+function showBackdrop(show) {
+    const bd = document.getElementById('modal-backdrop');
+    if (!bd) return;
+    bd.style.display = show ? 'block' : 'none';
+}
+function showModal(el, show) {
+    if (!el) return;
+    el.style.display = show ? 'flex' : 'none';
+    showBackdrop(show);
+}
+function bindModalClose(container) {
+    container.querySelectorAll('[data-close]').forEach(btn => {
+        btn.onclick = () => showModal(container, false);
+    });
+}
+
+/* ======================= 팝업 구현체 ======================= */
+function openStatusWindow(ally) {
+  const modal = document.getElementById('ally-status-modal');
+  if (!modal) return;
+
+  const portraitEl = document.getElementById('allyStatusPortrait');
+  const titleEl = modal.querySelector('.ally-modal__title');
+  const contentEl = document.getElementById('ally-status-content');
+
+  // Inject ally portrait
+  if (portraitEl) {
+    const custom = localStorage.getItem(`allyIcon:${ally.id}`);
+    const fallback = ally.element ? `icons/${ally.element}l.png` : `icons/ll.png`;
+    portraitEl.src = custom || fallback;
+    portraitEl.alt = ally.name;
+  }
+
+  // Update title
+  if (titleEl) {
+    titleEl.textContent = ally.name;
+  }
+
+  // Update content one-to-one
+  if (contentEl) {
+    contentEl.innerHTML = `
+      <p><strong>HP:</strong> ${ally.hp} / ${ally.maxHp}</p>
+      <p><strong>Attack:</strong> ${ally.attack}</p>
+      <p><strong>Heal:</strong> ${ally.heal}</p>
+      <p><strong>Cooldown:</strong> ${ally.cooldownLeft} / ${ally.cooldownMax}</p>
+    `;
+  }
+
+  showModal(modal, true);
+}
+let _skillTarget = null;
+function openSkillWindow(ally) {
+    if (!(ally && ally.skillReady)) { // 안전장치
+        openStatusWindow(ally);
+        return;
+    }
+    _skillTarget = ally;
+
+    const modal = document.getElementById('ally-skill-modal');
+    const content = document.getElementById('ally-skill-content');
+    const useBtn = document.getElementById('btn-skill-use');
+    if (!modal || !content || !useBtn) return;
+
+    // 내용 구성(스킬 설명은 추후 교체)
+    content.innerHTML = `
+    <div><strong>${ally.name}</strong>의 스킬을 사용하시겠습니까?</div>
+    <div style="opacity:.8; margin-top:6px;">쿨타임: ${ally.cooldownMax}턴 (사용 시 초기화)</div>
+  `;
+
+    useBtn.onclick = () => {
+        // 실제 스킬 효과 적용은 여기서 호출
+        consumeSkill(_skillTarget);      // 쿨타임 리셋
+        // TODO: 스킬 실제 효과 로직 호출(데미지/버프 등)
+        showModal(modal, false);
+    };
+
+    bindModalClose(modal);
+    showModal(modal, true);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  // 상태창/스킬창 닫기 버튼 기능
+  document.querySelectorAll("[data-close]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const modal = btn.closest(".ally-modal");
+      if (modal) {
+        modal.style.display = "none";
+        const backdrop = document.getElementById("modal-backdrop");
+        if (backdrop) backdrop.style.display = "none";
+      }
+    });
+  });
+
+  // 백드롭 클릭 시 모달 닫기
+  const backdrop = document.getElementById("modal-backdrop");
+  if (backdrop) {
+    backdrop.addEventListener("click", () => {
+      document.querySelectorAll(".ally-modal").forEach((modal) => {
+        modal.style.display = "none";
+      });
+      backdrop.style.display = "none";
+    });
+  }
+});

@@ -128,7 +128,7 @@ body.no-scroll {
   border: 2px solid #645959;
   border-radius: 5px;
   overflow: hidden;
-  z-index: 5000;
+  z-index: 4800;
 }
 
 .hp-fill {
@@ -220,7 +220,7 @@ body.no-scroll {
   padding: 4px 8px;
   border-radius: 8px;
   pointer-events: none;
-  z-index: 5000;
+  z-index: 4800;
 }
 
 /* === 데미지 전용 === */
@@ -281,7 +281,7 @@ body.no-scroll {
   border-radius: 8px;
   animation: floatUpHealBar 1.2s ease-out forwards;
   pointer-events: none;
-  z-index: 5000;
+  z-index: 4800;
 }
 
 /* === 데미지 이펙트: 위로 15px 떠오름 === */
@@ -312,4 +312,122 @@ body.no-scroll {
   height: 100%;
   object-fit: contain;
   display: block;
+}
+
+
+
+/* 모달 공통 */
+.ally-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5001;
+}
+
+.ally-modal__panel {
+  min-width: 280px;
+  max-width: 420px;
+  width: 90%;
+  background: #111;
+  color: #eee;
+  border-radius: 12px;
+  padding: 16px 16px 12px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, .6);
+  position: relative;
+}
+
+.ally-modal__title {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.ally-modal__content {
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 8px 0 12px;
+}
+
+.ally-modal__footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.ally-modal__ok,
+.ally-modal__cancel,
+.ally-modal__close {
+  background: #2b2f38;
+  border: none;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.ally-modal__ok {
+  background: #3a86ff;
+}
+
+.ally-modal__cancel {
+  background: #6c757d;
+}
+
+.ally-modal__close {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+/* 모달 패널이 화면을 넘지 않도록 */
+.ally-modal__panel{
+  max-height: 85vh;
+  overflow: auto;
+}
+
+/* 상태창 일러스트 래퍼와 이미지 크기 제한 */
+.ally-status-hero{
+  display:flex; justify-content:center; margin:8px 0 12px;
+}
+.ally-status-portrait{
+  width: min(38vw, 160px);
+  height: min(38vw, 160px);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #222;
+  box-shadow: 0 4px 14px rgba(0,0,0,.35);
+}
+.ally-status-portrait img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;   /* 필요시 contain 으로 교체 가능 */
+  display: block;
+}
+#allyStatusPortrait {
+  width: 100%;
+  max-width: 240px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  object-fit: contain;
+}
+#modal-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 5000;
+    backdrop-filter: saturate(120%) blur(1px);
+    inset: 0;
+
+    /* 👇 이 스타일을 추가해야 합니다 */
+    border: none;
+    cursor: default; /* 마우스 커서 모양을 기본으로 유지 */
+    padding: 0;
 }

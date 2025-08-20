@@ -50,7 +50,7 @@ const TaskStore = {
     }
 };
 
-function bindLongPress(el, onLongPress, ms = 700) {
+function bindLongPress(el, onLongPress, ms = 3000) {
     let timer = null;
 
     const isFromActionBtn = (target) =>

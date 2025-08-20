@@ -62,8 +62,6 @@
     <div class="main-buttons">
       <button class="main-btn" id="btnAdventure">모험</button>
       <button class="main-btn" id="btnCardTeam">팀편성</button>
-      <!--<button class="main-btn" id="btnCardList">카드도감</button>
-      <button class="main-btn" id="btnOpenSummon" data-popup="summonMain">소환</button>-->
     </div>
   </main>
 
@@ -81,15 +79,12 @@
     <div class="enemy-grid">
       <div class="monster-slot" id="monster-left">
               <img src="icons/m1.png" alt="ally3">
-
       </div>
       <div class="monster-slot" id="monster-center">
               <img src="icons/m2.png" alt="ally3">
-
       </div>
       <div class="monster-slot" id="monster-right">
               <img src="icons/m3.png" alt="ally3">
-
       </div>
     </div>
   </div>
@@ -127,7 +122,6 @@
     <div class="hp-fill"></div>
     <span class="hp-text">0 / 0</span>
   </div>
-
 
   <!-- 퍼즐판 -->
   <div class="puzzle-board">
@@ -187,48 +181,6 @@
     </div>
   </div>
 
-  <!-- 1단계: 카드 - 카드도감 팝업 -->
-  <div class="popup" id="CardList">
-    <div class="popupContent">
-      <h2>카드목록</h2>
-    </div>
-  </div>
-
-  <!-- 1단계: 소환 메인 레이어 -->
-  <div class="popup" id="summonMain">
-    <div class="popupContent">
-      <h2>소환</h2>
-      <button class="btn-gate" id="btnGateKerei">케레이 게이트</button>
-      <button class="btn-gate" id="btnGateRoseKerei">로즈 케레이 게이트</button>
-      <button class="btn-gate" id="btnGateGoldKerei">골든 케레이 게이트</button>
-    </div>
-  </div>
-  
-  <!-- 2단계: 케레이 게이트 레이어 -->
-  <div class="popup" id="GateKerei">
-    <div class="popupContent">
-      <h2>케레이 게이트</h2>
-      <!-- 케레이 게이트 관련 내용 -->
-    </div>
-  </div>
-  
-  <!-- 2단계: 로즈 케레이 게이트 레이어 -->
-  <div class="popup" id="GateRoseKerei">
-    <div class="popupContent">
-      <h2>로즈 케레이 게이트</h2>
-      <!-- 로즈 케레이 게이트 관련 내용 -->
-    </div>
-  </div>
-  
-  <!-- 2단계: 골든 케레이 게이트 레이어 -->
-  <div class="popup" id="GateGoldKerei">
-    <div class="popupContent">
-      <h2>골든 케레이 게이트</h2>
-      <!-- 골든 케레이 게이트 관련 내용 -->
-    </div>
-  </div>
-
-  <!-- -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- -->
 <footer>
   <button data-popup="popup1">✅<br><span class="smft">일일 과제</span></button>
   <button data-popup="popup2">🌱<br><span class="smft">습관</span></button>
@@ -346,6 +298,37 @@
         </div>
 
       </form>
+    </div>
+  </div>
+
+  <!-- 공용 모달 백드롭 -->
+  <div id="modal-backdrop" data-close style="display:none;"></div>
+
+  <!-- 상태창 모달 -->
+  <div id="ally-status-modal" class="ally-modal" style="display:none;">
+    <div class="ally-modal__panel">
+      <button class="ally-modal__close" data-close>×</button>
+      <h3 class="ally-modal__title">상태창</h3>
+      <img id="allyStatusPortrait" alt="ally portrait">
+      <div class="ally-modal__content" id="ally-status-content"></div>
+      <div class="ally-modal__footer">
+        <button class="ally-modal__ok">아이콘 변경</button>
+        <button class="ally-modal__ok" id="enhance-button">강화</button>
+        <button class="ally-modal__ok" data-close>닫기</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 스킬창 모달 -->
+  <div id="ally-skill-modal" class="ally-modal" style="display:none;">
+    <div class="ally-modal__panel">
+      <button class="ally-modal__close" data-close>×</button>
+      <h3 class="ally-modal__title">스킬</h3>
+      <div class="ally-modal__content" id="ally-skill-content"></div>
+      <div class="ally-modal__footer">
+        <button class="ally-modal__ok" id="btn-skill-use">사용</button>
+        <button class="ally-modal__cancel" data-close>취소</button>
+      </div>
     </div>
   </div>
 
