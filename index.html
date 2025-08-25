@@ -62,6 +62,8 @@
     <div class="main-buttons">
       <button class="main-btn" id="btnAdventure">모험</button>
       <button class="main-btn" id="btnCardTeam">팀편성</button>
+      <button onclick="resetAllLocalStorage()">전체 초기화</button>
+      <button onclick="resetAllyIconsToDefault()">아이콘 초기화</button>
     </div>
   </main>
 
@@ -71,11 +73,16 @@
   <!-- 상단 UI -->
   <div class="adventure-header">
     <button class="btn-home">⇦</button>
+    <button id="btnToggleFooterZ" class="btn-toggle-footer">🎆</button>
     <div class="key-count"><img class="key-icon" src="icons/key-rose.png" alt="로즈키"> <span id="roseKeyCount">0</span></div>
   </div>
 
   <!-- 적 일러스트 영역 -->
   <div class="enemy-area">
+    <div class="enemy-hp-bar">
+      <div class="enemy-hp-fill"></div>
+      <span class="enemy-hp-text">0 / 0</span>
+    </div>
     <div class="enemy-grid">
       <div class="monster-slot" id="monster-left">
               <img src="icons/m1.png" alt="ally3">
@@ -307,8 +314,7 @@
   <!-- 상태창 모달 -->
   <div id="ally-status-modal" class="ally-modal" style="display:none;">
     <div class="ally-modal__panel">
-      <button class="ally-modal__close" data-close>×</button>
-      <h3 class="ally-modal__title">상태창</h3>
+      <h1 class="ally-modal__title">상태창</h1>
       <img id="allyStatusPortrait" alt="ally portrait">
       <div class="ally-modal__content" id="ally-status-content"></div>
       <div class="ally-modal__footer">
@@ -328,6 +334,37 @@
       <div class="ally-modal__footer">
         <button class="ally-modal__ok" id="btn-skill-use">사용</button>
         <button class="ally-modal__cancel" data-close>취소</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 아이콘 파일 선택 (숨김) -->
+  <input id="iconFileInput" type="file" accept="image/*" style="display:none" />
+
+  <!-- 아이콘 크롭 모달 -->
+  <div id="iconCropModal" class="ally-modal" style="display:none;">
+    <div class="ally-modal__panel">
+      <h3 class="ally-modal__title">아이콘 자르기 (512×512)</h3>
+
+      <div class="icon-cropper">
+        <div class="crop-stage">
+          <canvas id="iconCropCanvas" width="512" height="512"></canvas>
+          <!-- 마스크(정사각형 프레임) -->
+          <div class="crop-mask"></div>
+        </div>
+
+        <div class="crop-controls">
+          <label>
+            확대/축소
+            <input id="iconZoom" type="range" min="0.5" max="3" step="0.01" value="1">
+          </label>
+          <div class="hint">이미지를 드래그하여 위치 조정</div>
+        </div>
+      </div>
+
+      <div class="ally-modal__footer">
+        <button class="ally-modal__cancel" data-close>취소</button>
+        <button class="ally-modal__ok" id="iconCropSave">저장</button>
       </div>
     </div>
   </div>

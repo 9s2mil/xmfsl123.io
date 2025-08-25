@@ -2,85 +2,11 @@ let moveCount = 0;
 let turnMovesMax = 3;       // 한 턴 최대 이동 횟수 (기본 3)
 let turnMovesLeft = turnMovesMax;
 let isResolving = false;
+let turnDamageTotal = 0;   
 
-// ===== Summon popups 현재는 사용안함 =====
-(function () {
-    const popup_IDS = ['summonMain', 'GateKerei', 'GateRoseKerei', 'GateGoldKerei'];
-    let current = null;
-
-    const $ = (sel) => document.querySelector(sel);
-    const byId = (id) => document.getElementById(id);
-
-    function hideAll() {
-        popup_IDS.forEach(id => {
-            const el = byId(id);
-            if (el) el.style.display = 'none';
-        });
-        current = null;
-    }
-
-    function show(id) {
-        hideAll();
-        const el = byId(id);
-        if (!el) return;
-        el.style.display = 'block';
-        current = id;
-    }
-
-    // --- 트리거 바인딩 ---
-    function bind() {
-        // 1) 메인 탭의 "소환" 버튼: id 또는 class 중 하나만 달아두면 됩니다.
-        //    예: <button id="btnOpenSummon">소환</button>
-        //        또는 <button class="open-summon">소환</button>
-        const openSummonBtn = $('#btnOpenSummon') || $('.open-summon');
-        openSummonBtn?.addEventListener('click', () => show('summonMain'));
-
-        // 2) 소환 메인에서 게이트 3개로 진입 (이전 HTML 예시의 id 사용)
-        byId('btnGateKerei')?.addEventListener('click', () => show('GateKerei'));
-        byId('btnGateRoseKerei')?.addEventListener('click', () => show('GateRoseKerei'));
-        byId('btnGateGoldKerei')?.addEventListener('click', () => show('GateGoldKerei'));
-
-        // 3) 각 레이어의 빈 배경 클릭 시 뒤로가기:
-        //    - 게이트 레이어면 → summonMain으로
-        //    - summonMain이면 → 모두 닫기
-        popup_IDS.forEach(id => {
-            const popup = byId(id);
-            if (!popup) return;
-            popup.addEventListener('click', (e) => {
-                if (e.target === popup) {
-                    if (id !== 'summonMain') show('summonMain');
-                    else hideAll();
-                }
-            });
-        });
-
-        // 4) ESC 키: 게이트 → summonMain, summonMain → 닫기
-        document.addEventListener('keydown', (e) => {
-            if (e.key !== 'Escape' || !current) return;
-            if (current !== 'summonMain') show('summonMain');
-            else hideAll();
-        });
-
-        // 5) (선택) 공통 뒤로가기 버튼 지원: 레이어 안에 .btn-back 달면 동작
-        document.addEventListener('click', (e) => {
-            const el = e.target;
-            if (!(el instanceof Element)) return;
-            if (el.closest('.btn-back')) {
-                if (current && current !== 'summonMain') show('summonMain');
-                else hideAll();
-            }
-            // data-popup-target="#GateKerei" 같은 형태도 지원
-            const targetSel = el.getAttribute('data-popup-target');
-            if (targetSel) {
-                const id = targetSel.replace(/^#/, '');
-                show(id);
-            }
-        });
-    }
-
-    // 초기화는 필요할 때만 호출하세요. 예) 소환 버튼이 있는 페이지에서만
-    document.addEventListener('DOMContentLoaded', bind);
-})();
+function randomEnemyDelta() {
+    return 500 + Math.floor(Math.random() * 11) * 100;  // 500..1500
+}
 
 // HP 상태 관리
 const HP = {
@@ -97,9 +23,12 @@ const HP = {
     },
 
     setHP(value) {
+        const prev = this.current;                            // ★ 추가
         this.current = Math.max(0, Math.min(this.max, value));
         this.updateBar();
+        if (prev > 0 && this.current === 0) onPartyDefeated(); // ★ 추가
     },
+
 
     changeHP(delta) {
         this.setHP(this.current + delta);
@@ -116,6 +45,163 @@ const HP = {
 
 document.addEventListener("DOMContentLoaded", () => {
     HP.init();
+});
+
+/* === Enemy HP Manager & Rank/State Utils === */
+const EnemyHP = {
+    max: 1000,
+    current: 1000,
+    init(max = 1000) {
+        this.max = max;
+        this.current = max;
+        this.updateBar();
+    },
+    updateBar() {
+        const fill = document.querySelector('.enemy-hp-fill');
+        const text = document.querySelector('.enemy-hp-text');
+        const pct = (this.current / this.max) * 100;
+        if (fill) fill.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+        if (text) text.textContent = `${this.current} / ${this.max}`;
+    },
+    damage(n) {
+        const d = Math.max(0, Math.floor(n) || 0);
+        this.current = Math.max(0, this.current - d);
+        this.updateBar();
+        if (this.current <= 0) onEnemyDefeated();
+    }
+};
+
+// 500~1500 사이 100 단위 랜덤
+function randomEnemyMaxHP() {
+    const base = 500 + Math.floor(Math.random() * 11) * 100; // 500..1500
+    return base;
+}
+
+// 헤더 랭크 즉시+영구 업데이트
+function bumpRank() {
+    const KEY = 'profileV1';
+    let obj = {};
+    try { obj = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch { }
+    const cur = Number(obj.rank || 1);
+    obj.rank = cur + 1;
+    localStorage.setItem(KEY, JSON.stringify(obj));
+
+    // Profile 모듈이 있으면 상태도 갱신
+    if (window.Profile && Profile.state) {
+        Profile.state.rank = obj.rank;
+    }
+    // 헤더 즉시 반영
+    const el = document.getElementById('headerRank');
+    if (el) el.textContent = obj.rank;
+
+    // 프로필 렌더 요청(아래 3-C-2와 세트)
+    window.dispatchEvent(new CustomEvent('profile:update'));
+}
+
+// 모험 상태 저장키
+const ADV_LS_KEY = 'adventureV1';
+
+// 보드(6×5) → 저장
+function saveAdventureState() {
+    try {
+        const state = {
+            board: getBoardState(),
+            enemy: { current: EnemyHP.current, max: EnemyHP.max },
+            ally: { current: HP.current, max: HP.max },
+            turnMovesLeft
+        };
+        localStorage.setItem(ADV_LS_KEY, JSON.stringify(state));
+    } catch { }
+}
+
+// 저장본 → 보드/HP 복원
+function applyBoardState(board) {
+    const slots = document.querySelectorAll(".puzzle-slot");
+    const rows = 5, cols = 6;
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const idx = r * cols + c;
+            const slot = slots[idx];
+            const el = board[r][c];
+            slot.dataset.element = el;
+            resetSlotIcon(slot);
+        }
+    }
+}
+
+function restoreAdventureState() {
+    try {
+        const raw = localStorage.getItem(ADV_LS_KEY);
+        if (!raw) return false;
+        const s = JSON.parse(raw);
+        if (!s || !Array.isArray(s.board)) return false;
+
+        applyBoardState(s.board);
+
+        if (s.enemy && typeof s.enemy.current === 'number' && typeof s.enemy.max === 'number') {
+            EnemyHP.max = s.enemy.max;
+            EnemyHP.current = Math.max(0, Math.min(s.enemy.max, s.enemy.current));
+            EnemyHP.updateBar();
+        } else {
+            EnemyHP.init(randomEnemyMaxHP());
+        }
+
+        if (s.ally && typeof s.ally.current === 'number' && typeof s.ally.max === 'number') {
+            HP.max = s.ally.max;
+            HP.current = Math.max(0, Math.min(HP.max, s.ally.current));
+            updateAllyHPBar();
+        } else {
+            updateAllyHPBar();
+        }
+
+        if (typeof s.turnMovesLeft === 'number') {
+            turnMovesLeft = Math.max(0, Math.min(turnMovesMax, s.turnMovesLeft | 0));
+        }
+        updateTurnGauge();
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function clearAdventureState() {
+    try { localStorage.removeItem(ADV_LS_KEY); } catch { }
+}
+
+// 적 처치 → 랭크 +1, 적 HP 랜덤 재설정, 퍼즐 초기화
+function onEnemyDefeated() {
+    // 1) 랭크 상승 즉시 반영
+    bumpRank();  // 아래 3-C에서 즉시 반영되도록 고침
+
+    // 2) 퍼즐 저장본 초기화
+    clearAdventureState();
+
+    // 3) 다음 적 HP = '이전 최대 HP' + '랜덤(500..1500, 100단위)'
+    const nextMax = EnemyHP.max + randomEnemyDelta();
+    EnemyHP.init(nextMax);
+
+    // 4) 퍼즐도 새 판
+    initPuzzleBoard();
+    turnMovesLeft = turnMovesMax;
+    updateTurnGauge();
+
+    // 5) 새 상태 저장
+    saveAdventureState();
+}
+
+
+// 아군 전멸 → 퍼즐만 초기화
+function onPartyDefeated() {
+    clearAdventureState();
+    initPuzzleBoard();                 // 새 퍼즐
+    turnMovesLeft = turnMovesMax;
+    updateTurnGauge();
+    saveAdventureState();
+}
+
+// 초기 진입 시 적 HP 바 세팅
+document.addEventListener('DOMContentLoaded', () => {
+    EnemyHP.init(1000);   // ← 시작값. 필요시 랭크/스테이지에 따라 조정
 });
 
 // === 퍼즐 초기화 ===
@@ -153,89 +239,76 @@ function swapSlots(slot1, slot2) {
     const elem1 = slot1.dataset.element;
     const elem2 = slot2.dataset.element;
 
-    // 데이터 교환
-    slot1.dataset.element = elem2;
-    slot2.dataset.element = elem1;
-
-    // 아이콘 갱신
-    resetSlotIcon(slot1);
-    resetSlotIcon(slot2);
-
-    // 이동 카운트 증가
-    moveCount++;
-
-    // 턴 게이지 감소
-    turnMovesLeft--;
-    updateTurnGauge();
-
-    // 턴 소모 처리
-    // ✅ 유일한 턴 종료 트리거: 3돌이 끝나 turnMovesLeft가 0이 된 순간
-    if (turnMovesLeft <= 0) {
-        // 로즈키 차감(성공해야 턴 종료)
-        if (typeof useTurn === 'function' ? useTurn() : true) {
-            if (!isResolving) {
-                isResolving = true;
-                resolveBoard(); // 연쇄 및 후처리 시작
-            }
-        } else {
-            // 키 부족 등으로 턴 종료 불가 → 한 칸 복구
-            turnMovesLeft = 1;
-            updateTurnGauge();
+    // 턴 시작: 키가 0이면 시작 자체 차단 (차감은 턴 종료 시)
+    if (turnMovesLeft === turnMovesMax) {
+        if (getRoseTotalNow() <= 0) {
+            return;
         }
     }
 
-    // 매칭 검사 (항상 실행)
+    // === 데이터 교환 ===
+    slot1.dataset.element = elem2;
+    slot2.dataset.element = elem1;
+    resetSlotIcon(slot1);
+    resetSlotIcon(slot2);
+
+    moveCount++;
+    turnMovesLeft--;
+    updateTurnGauge();
+
+    // ✅ 기존: 마지막 이동 후 턴 종료 시도
+    if (turnMovesLeft <= 0) {
+        if (!isResolving) {
+            isResolving = true;
+            turnDamageTotal = 0;  // ✅ 이번 턴 합계 초기화
+            resolveBoard();
+        }
+    }
+
+    // 매칭 검사
     const board = getBoardState();
     const matches = findMatches(board);
     if (matches.length > 0) {
         applyHighlight(flattenMatches(matches));
-    } else { }
-
-    // 3번째 이동 후 → resolveBoard 전체 실행
-    // if (moveCount >= 3) {
-    //     resolveBoard();   // 여기서 한 번만 처리
-    // }
-    // if (moveCount >= 3 && useTurn()) {
-    //     resolveBoard();
-    //     moveCount = 0;
-    // }
+    }
 }
 
-function updateRoseKeyUI() {
-    const header = document.getElementById("hdrRose");
-    const adventure = document.getElementById("roseKeyCount");
-    if (header) header.textContent = state.roseTotal;
-    if (adventure) adventure.textContent = state.roseTotal;
+function getRoseTotalNow() {
+    if (window.Rewards && window.Rewards._state) {
+        return Number(window.Rewards._state.roseTotal || 0);
+    }
+    try {
+        const obj = JSON.parse(localStorage.getItem('rewardsV1') || '{}') || {};
+        return Number(obj.roseTotal || 0);
+    } catch { return 0; }
 }
 
 let focusedSlot = null;
 
 // 슬롯 클릭 이벤트
-document.querySelectorAll(".puzzle-slot").forEach(slot => {
-    slot.addEventListener("click", (e) => {
-        e.stopPropagation();
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".puzzle-slot").forEach(slot => {
+        slot.addEventListener("click", (e) => {
+            e.stopPropagation();
 
-        if (focusedSlot) {
-            if (areAdjacent(focusedSlot, slot)) {
-                swapSlots(focusedSlot, slot);
-
-                // ✅ 이동이 발생했을 때만 포커스 해제
+            if (focusedSlot) {
+                if (areAdjacent(focusedSlot, slot)) {
+                    swapSlots(focusedSlot, slot);
+                    resetSlotIcon(focusedSlot);
+                    focusedSlot.classList.remove("focused");
+                    focusedSlot = null;
+                    return;
+                }
                 resetSlotIcon(focusedSlot);
                 focusedSlot.classList.remove("focused");
-                focusedSlot = null;
-                return; // 여기서 끝냄 → 새 포커스 지정 안 함
             }
 
-            // 인접하지 않으면 기존 포커스 해제
-            resetSlotIcon(focusedSlot);
-            focusedSlot.classList.remove("focused");
-        }
-
-        // 새 포커스 적용
-        focusedSlot = slot;
-        focusedSlot.classList.add("focused");
+            focusedSlot = slot;
+            focusedSlot.classList.add("focused");
+        });
     });
 });
+
 
 
 // 바깥 클릭 시 포커스 해제
@@ -264,8 +337,14 @@ function resetSlotIcon(slot) {
 
 // 초기화 실행
 document.addEventListener("DOMContentLoaded", () => {
-    initPuzzleBoard();
+    // 적 HP 바 세팅(저장본 없으면 랜덤 초기화)
+    if (!restoreAdventureState()) {
+        EnemyHP.init(randomEnemyMaxHP());
+        initPuzzleBoard();
+        saveAdventureState();
+    }
 });
+
 
 // 상, 하, 좌, 우, ↘, ↖, ↙, ↗
 const directions = [
@@ -497,6 +576,19 @@ function resolveBoardStep() {
         }, 300);
     } else {
         // 모든 연쇄 종료
+
+        // 🔻 여기에서 한 턴 소비 처리 (정확히 1회)
+        if (!consumeTurnKey()) {
+            // 키가 모자라면 다음 턴 시작 불가하게 안내 (원하면 추가 처리)
+            console.warn('로즈키 부족: 다음 턴 시작 불가');
+        }
+
+        // ✅ 이번 턴 총 데미지를 적에게 적용
+        if (turnDamageTotal > 0) {
+            EnemyHP.damage(turnDamageTotal);
+            turnDamageTotal = 0;   // 다음 턴 대비 초기화
+        }
+
         moveCount = 0;
 
         // (있는 경우) 이번 턴 로그 출력/초기화
@@ -512,8 +604,49 @@ function resolveBoardStep() {
         turnMovesLeft = turnMovesMax;
         updateTurnGauge();
 
+        // ✅ 이번 턴 총 데미지를 적에게 적용
+        if (turnDamageTotal > 0) {
+            EnemyHP.damage(turnDamageTotal);
+            turnDamageTotal = 0;
+        }
+
+        // ✅ 연쇄/정산이 끝난 '안정 상태'에서 저장
+        saveAdventureState();
+
         // ✅ resolveBoard 재진입 가능 상태로 복귀
         isResolving = false;
+    }
+}
+
+function consumeTurnKey() {
+    // Rewards가 준비된 정상 경로
+    if (window.Rewards && typeof window.Rewards.consumeRose === 'function') {
+        const ok = window.Rewards.consumeRose(1);
+        if (!ok) {
+            return false;
+        }
+        const roseUI = document.getElementById('roseKeyCount');
+        if (roseUI) roseUI.textContent = window.Rewards._state.roseTotal;
+        return true;
+    }
+
+    // 🔁 Fallback: Rewards 미초기화 시에도 'rewardsV1'만 수정 (단일 소스 유지)
+    try {
+        const obj = JSON.parse(localStorage.getItem('rewardsV1') || '{}') || {};
+        const cur = Number(obj.roseTotal || 0);
+        if (cur <= 0) {
+            return false;
+        }
+        obj.roseTotal = cur - 1;
+        localStorage.setItem('rewardsV1', JSON.stringify(obj));
+        // 전역 UI 동기화(헤더/모험 동시 반영)
+        window.dispatchEvent(new CustomEvent('rewards:update'));
+        const roseUI = document.getElementById('roseKeyCount');
+        if (roseUI) roseUI.textContent = obj.roseTotal;
+        return true;
+    } catch {
+        alert('로즈키 차감 중 오류');
+        return false;
     }
 }
 
@@ -551,105 +684,16 @@ function updateAllyHPBar() {
     if (text) text.textContent = `${HP.current} / ${HP.max}`;
 }
 
-// ===== 전투 처리 =====
-// function applyCombatResults(matches) {
-//     console.log("=== 전투 로그 ===");
-//     let totalDamage = 0;
-//     let totalHeal = 0;
-
-//     for (const [element, count] of Object.entries(matches)) {
-//         if (!count) continue;
-
-//         if (element === "l") {
-//             // 생 = 회복
-//             const heal = allies.slice(1).reduce((sum, u) => sum + (u ? u.heal * count : 0), 0);
-//             totalHeal += heal;
-//             console.log(`💚 생(${count}) → 아군 전체 ${heal} 회복`);
-//             HP.changeHP(heal);
-//         } else {
-//             // 속성 공격
-//             const idx = elementMap[element];
-//             const unit = allies[idx];
-//             if (unit) {
-//                 const dmg = unit.atk * count;
-//                 totalDamage += dmg;
-//                 console.log(`⚔️ ${unit.name} ${element.toUpperCase()}(${count}) → ${dmg} 데미지`);
-//             }
-//         }
-//     }
-
-//     console.log(`총합 ▶ 💚회복: ${totalHeal}, ⚔️공격: ${totalDamage}`);
-// }
-
-// function applyCombatResults(matches) {
-//     console.log("=== 전투 로그 ===");
-
-//     let totalDamage = 0;
-//     let totalHeal = 0;
-//     let totalIntendedHeal = 0;
-//     const effects = [];
-
-//     for (const [element, count] of Object.entries(matches)) {
-//         if (!count) continue;
-
-//         if (element === "l") {
-//             allies.slice(1).forEach((u) => {
-//                 if (!u) return;
-
-//                 const intendedHeal = u.heal * count;
-//                 const actualHeal = Math.min(intendedHeal, u.maxHp - u.hp);
-
-//                 totalIntendedHeal += intendedHeal;
-//                 if (actualHeal > 0) {
-//                     u.hp += actualHeal;
-//                     totalHeal += actualHeal;
-//                 }
-//             });
-
-//             HP.changeHP(totalHeal);
-//             combatLog.push(`💖 총 회복 ${totalHeal}`);
-//         } else {
-//             const ally = allies.find(u => u && u.element === element);
-//             if (!ally) continue;
-
-//             const damage = ally.attack * count;
-//             totalDamage += damage;
-//             combatLog.push(`⚔️ ${ally.name} → ${damage} 공격`);
-//             effects.push(() => showCombatEffect(ally.id, damage, false));
-//         }
-//     }
-
-//     updateAllyHPBar();
-
-//     // 힐 이펙트 한 번만 표시
-//     if (totalIntendedHeal > 0) {
-//         requestAnimationFrame(() => {
-//             showHealTotalEffect(totalIntendedHeal);
-//         });
-//     }
-
-//     // 공격 이펙트 표시
-//     requestAnimationFrame(() => {
-//         effects.forEach(fn => fn());
-//     });
-// }
-
 window.addEventListener('DOMContentLoaded', () => {
     const roseUI = document.getElementById('roseKeyCount');
-    const hdrRose = document.getElementById('hdrRose');
-
-    // 우선 로컬에서 불러오기 시도
-    let val = loadRoseKeyCount();
-
-    // 로컬에 값이 없고, hdrRose에 값이 있으면 → 그걸 복사해 초기화
-    if ((val === 0 || isNaN(val)) && hdrRose) {
-        val = parseInt(hdrRose.textContent, 10) || 0;
-        saveRoseKeyCount(val); // ← 최초 진입 시 저장
+    let val = 0;
+    if (window.Rewards && window.Rewards._state) {
+        val = Number(window.Rewards._state.roseTotal || 0);
+    } else {
+        try { val = Number(JSON.parse(localStorage.getItem('rewardsV1') || '{}').roseTotal || 0); }
+        catch { val = 0; }
     }
-
-    // UI 반영
     if (roseUI) roseUI.textContent = val;
-    if (hdrRose) hdrRose.textContent = val;
 });
 
 function applyCombatResults(matches) {
@@ -700,7 +744,7 @@ function applyCombatResults(matches) {
         // combatLog.push(`⚔️ ${leader.name} → ${damage} 공격`);
         effects.push(() => showCombatEffect(leader.id, damage, false));
     }
-
+    turnDamageTotal += totalDamage;
     updateAllyHPBar();
 
     if (totalIntendedHeal > 0) {
@@ -792,34 +836,6 @@ function showCombatEffect(index, value, isHeal = false) {
     }, 2500);
 }
 
-function saveRoseKeyCount(count) {
-    localStorage.setItem('roseKeyCount', count);
-}
-
-function loadRoseKeyCount() {
-    const saved = parseInt(localStorage.getItem('roseKeyCount'), 10);
-    return isNaN(saved) ? 0 : saved;
-}
-
-function useTurn() {
-    const roseUI = document.getElementById('roseKeyCount');
-    const hdrRose = document.getElementById('hdrRose');
-
-    let current = parseInt(roseUI.textContent, 10) || 0;
-
-    if (current <= 0) {
-        alert("로즈키가 부족합니다!");
-        return false;
-    }
-
-    current--;
-    roseUI.textContent = current;
-    if (hdrRose) hdrRose.textContent = current;
-
-    saveRoseKeyCount(current); // ← 새로 추가된 부분
-
-    return true;
-}
 
 /* ======================= Allies: Skill Cooldown Fields ======================= */
 /* 각 캐릭터에 스킬 쿨타임(최대/남은), 준비 여부, 잠금 여부 필드 부여 */
@@ -1030,12 +1046,12 @@ function openStatusWindow(ally) {
   const contentEl = document.getElementById('ally-status-content');
 
   // Inject ally portrait
-  if (portraitEl) {
-    const custom = localStorage.getItem(`allyIcon:${ally.id}`);
-    const fallback = ally.element ? `icons/${ally.element}l.png` : `icons/ll.png`;
-    portraitEl.src = custom || fallback;
-    portraitEl.alt = ally.name;
-  }
+    if (portraitEl) {
+        const fallback = ally.element ? `icons/${ally.element}l.png` : `icons/ll.png`;
+        portraitEl.src = fallback;
+        portraitEl.alt = ally.name;
+    }
+
 
   // Update title
   if (titleEl) {
@@ -1053,6 +1069,11 @@ function openStatusWindow(ally) {
   }
 
   showModal(modal, true);
+
+    const changeBtn = modal.querySelector('.ally-modal__footer .ally-modal__ok:not(#enhance-button):not([data-close])');
+    if (changeBtn) {
+        changeBtn.onclick = () => startChangeIconFlow(ally);
+    }
 }
 let _skillTarget = null;
 function openSkillWindow(ally) {
@@ -1108,3 +1129,208 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+    const toggleBtn = document.getElementById('btnToggleFooterZ');
+    const footer = document.querySelector('footer');
+    let footerZHigh = false;
+
+    if (toggleBtn && footer) {
+        toggleBtn.addEventListener('click', () => {
+            footerZHigh = !footerZHigh;
+            footer.style.zIndex = footerZHigh ? '6000' : '1000';
+        });
+    }
+});
+
+/* ======================= 아이콘 변경 (파일선택 + 크롭 + 저장) ======================= */
+let _iconTargetAlly = null;
+let _iconImg = null;
+let _iconScale = 1, _iconMinScale = 1;
+let _iconPos = { x: 0, y: 0 };
+let _drag = { active: false, sx: 0, sy: 0 };
+
+const $file = () => document.getElementById('iconFileInput');
+const $cropModal = () => document.getElementById('iconCropModal');
+const $canvas = () => document.getElementById('iconCropCanvas');
+const $zoom = () => document.getElementById('iconZoom');
+
+function startChangeIconFlow(ally) {
+    _iconTargetAlly = ally;
+    const fi = $file();
+    if (!fi) return;
+    fi.value = "";          // 같은 파일 재선택 허용
+    fi.onchange = onIconFileSelected;
+    fi.click();
+}
+
+function onIconFileSelected(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    const img = new Image();
+    img.onload = () => {
+        _iconImg = img;
+        openCropper();
+    };
+    img.onerror = () => alert("이미지를 불러오지 못했습니다.");
+    const reader = new FileReader();
+    reader.onload = ev => { img.src = ev.target.result; };
+    reader.readAsDataURL(file);
+}
+
+function openCropper() {
+    const modal = $cropModal();
+    const cvs = $canvas();
+    const z = $zoom();
+    if (!modal || !cvs || !z || !_iconImg) return;
+
+    // 초기 배치: 캔버스를 꽉 채우는 cover 스케일
+    const cw = cvs.width, ch = cvs.height;
+    const iw = _iconImg.width, ih = _iconImg.height;
+    _iconMinScale = Math.max(cw / iw, ch / ih);
+    _iconScale = Math.max(_iconMinScale, 1);   // 기본 1배 이상
+    _iconPos.x = (cw - iw * _iconScale) / 2;
+    _iconPos.y = (ch - ih * _iconScale) / 2;
+
+    z.min = (_iconMinScale).toFixed(2);
+    z.max = "3.00";
+    z.step = "0.01";
+    z.value = String(_iconScale);
+
+    bindCropperEvents();
+    drawCropper();
+    showModal(modal, true);
+}
+
+function bindCropperEvents() {
+    const cvs = $canvas();
+    const z = $zoom();
+    if (!cvs || !z) return;
+
+    // 줌 슬라이더
+    z.oninput = () => {
+        const cw = cvs.width, ch = cvs.height;
+        const iw = _iconImg.width, ih = _iconImg.height;
+
+        // 중심 기준 확대/축소
+        const prev = _iconScale;
+        _iconScale = Math.max(_iconMinScale, Math.min(3, Number(z.value) || _iconScale));
+        const scaleRatio = _iconScale / prev;
+
+        // 확대 시 중심 유지
+        const cx = cw / 2, cy = ch / 2;
+        _iconPos.x = cx - (cx - _iconPos.x) * scaleRatio;
+        _iconPos.y = cy - (cy - _iconPos.y) * scaleRatio;
+
+        clampPosition();
+        drawCropper();
+    };
+
+    // 드래그(마우스/터치)
+    const start = (x, y) => { _drag = { active: true, sx: x, sy: y }; };
+    const move = (x, y) => {
+        if (!_drag.active) return;
+        _iconPos.x += (x - _drag.sx);
+        _iconPos.y += (y - _drag.sy);
+        _drag.sx = x; _drag.sy = y;
+        clampPosition();
+        drawCropper();
+    };
+    const end = () => { _drag.active = false; };
+
+    // Pointer 이벤트 통합
+    cvs.onpointerdown = (ev) => { cvs.setPointerCapture(ev.pointerId); start(ev.clientX, ev.clientY); };
+    cvs.onpointermove = (ev) => move(ev.clientX, ev.clientY);
+    cvs.onpointerup = end;
+    cvs.onpointercancel = end;
+
+    // 저장 버튼
+    const saveBtn = document.getElementById('iconCropSave');
+    if (saveBtn) {
+        saveBtn.onclick = saveCroppedIcon;
+    }
+
+    // 모달의 data-close 버튼은 기존 bindModalClose로 닫힘
+}
+
+function clampPosition() {
+    const cvs = $canvas();
+    const iw = _iconImg.width, ih = _iconImg.height;
+    const cw = cvs.width, ch = cvs.height;
+    const vw = iw * _iconScale, vh = ih * _iconScale;
+
+    // 이미지는 캔버스를 완전히 덮어야 함 → 가장자리 빈틈 방지
+    if (vw <= cw) {
+        _iconPos.x = (cw - vw) / 2;
+    } else {
+        const minX = cw - vw, maxX = 0;
+        _iconPos.x = Math.max(minX, Math.min(maxX, _iconPos.x));
+    }
+    if (vh <= ch) {
+        _iconPos.y = (ch - vh) / 2;
+    } else {
+        const minY = ch - vh, maxY = 0;
+        _iconPos.y = Math.max(minY, Math.min(maxY, _iconPos.y));
+    }
+}
+
+function drawCropper() {
+    const cvs = $canvas(); if (!cvs) return;
+    const ctx = cvs.getContext('2d');
+    const cw = cvs.width, ch = cvs.height;
+
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, cw, ch);
+
+    if (_iconImg) {
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(_iconImg, _iconPos.x, _iconPos.y, _iconImg.width * _iconScale, _iconImg.height * _iconScale);
+    }
+}
+
+function saveCroppedIcon() {
+    const cvs = $canvas();
+    const modal = $cropModal();
+    if (!cvs || !_iconTargetAlly) return;
+
+    const dataUrl = cvs.toDataURL('image/png'); // 512×512 PNG
+    try {
+        localStorage.setItem(`allyIcon:${_iconTargetAlly.id}`, dataUrl);
+    } catch (e) {
+        alert("저장 공간이 부족합니다. 다른 아이콘을 일부 삭제해주세요.");
+        return;
+    }
+
+    // 저장 직후 즉시 반영 (수정본)
+    const slot = document.getElementById('h' + _iconTargetAlly.id);
+    if (slot) {
+        const img = slot.querySelector('img');
+        if (img) img.src = dataUrl;       // ← 모험 6칸 중 해당 칸 업데이트
+    }
+
+    showModal(modal, false);
+    // 필요 시: 커스텀 이벤트로 다른 UI 리프레시
+    window.dispatchEvent(new CustomEvent('allyIcon:updated', { detail: { id: _iconTargetAlly.id } }));
+}
+
+// 로컬스토리지의 커스텀 아이콘을 6칸 슬롯에 반영
+function applyCustomAllyIconsToSlots() {
+    for (let i = 1; i <= 6; i++) {
+        const slot = document.getElementById('h' + i);
+        if (!slot) continue;
+        const img = slot.querySelector('img');
+        if (!img) continue;
+
+        const custom = localStorage.getItem(`allyIcon:${i}`);
+        if (custom) img.src = custom;   // 저장된 게 있으면 data URL 적용
+        // 저장이 없으면 index.html의 기본 src 유지(icons/h{i}.png)
+    }
+}
+
+// 첫 로딩 때 한 번 적용
+document.addEventListener('DOMContentLoaded', () => {
+    applyCustomAllyIconsToSlots();
+});
+

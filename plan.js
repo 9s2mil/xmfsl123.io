@@ -248,6 +248,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    btnAdventure.addEventListener('click', () => {
+        adventureScreen.style.display = 'block';
+        // 추가: 모험 진입 시 슬롯 아이콘 재적용
+        if (window.applyCustomAllyIconsToSlots) window.applyCustomAllyIconsToSlots();
+    });
+
     // ================== 카드 팝업 연결 ==================
     const btnCardTeam = document.getElementById('btnCardTeam');
     const btnCardList = document.getElementById('btnCardList');
@@ -487,9 +493,34 @@ const Rewards = (() => {
         } catch {
             save();
         }
+        try {
+            const legacy = localStorage.getItem('roseKeyCount');
+            if (legacy != null) {
+                const n = Math.max(0, Number(legacy) || 0);
+                if (!state.roseTotal && n > 0) {
+                    state.roseTotal = n;
+                    save();
+                }
+                localStorage.removeItem('roseKeyCount');
+            }
+        } catch { }
     }
     function save() {
         localStorage.setItem(LS_KEY, JSON.stringify(state));
+    }
+
+    // ★ 추가: 로컬스토리지 → 메모리(state) 재하이드레이터
+    function refreshFromStorage() {
+        try {
+            const obj = JSON.parse(localStorage.getItem(LS_KEY) || '{}') || {};
+            // 숫자 필드만 엄격히 병합
+            const keys = ['points', 'roseTotal', 'silverTotal', 'goldTotal', 'roseCycle', 'silverCycle'];
+            for (const k of keys) {
+                if (obj[k] != null && !Number.isNaN(Number(obj[k]))) {
+                    state[k] = Number(obj[k]);
+                }
+            }
+        } catch { /* noop */ }
     }
 
     // ---- DOM 훅 ----
@@ -530,6 +561,7 @@ const Rewards = (() => {
     }
 
     function buyRose() {
+        refreshFromStorage();  // ★ 추가
         if (state.points < 1) return;
         state.points -= 1;
         state.roseTotal += 1;
@@ -571,9 +603,28 @@ const Rewards = (() => {
         updateUI();
     }
 
+    function getRose() {
+        return state.roseTotal;
+    }
+    function setRose(n) {
+        state.roseTotal = Math.max(0, Number(n) || 0);
+        save(); updateUI();
+        window.dispatchEvent(new CustomEvent('rewards:update'));
+    }
+    function consumeRose(n = 1) {
+        refreshFromStorage();  // ★ 추가
+        const v = Math.max(0, Number(n) || 0);
+        if (state.roseTotal < v) return false;
+        state.roseTotal -= v;
+        save(); updateUI();
+        window.dispatchEvent(new CustomEvent('rewards:update'));
+        return true;
+    }
+
     return {
         init,
-        grantPoints,     
+        grantPoints,    
+        getRose, setRose, consumeRose, 
         _state: state,
         _save: save, _updateUI: updateUI
     };
@@ -652,6 +703,7 @@ const Profile = (() => {
         elNickInput?.addEventListener('blur', commitEdit);
 
         window.addEventListener('rewards:update', render);
+        window.addEventListener('profile:update', render);
     }
 
     function init() {
@@ -725,23 +777,28 @@ document.addEventListener('dblclick', e => e.preventDefault());
 
 // ===== 로즈키 카운트 동기화 =====
 (function RoseKeySync() {
-    const hdrRose = document.getElementById('hdrRose');
     const roseKeyCount = document.getElementById('roseKeyCount');
 
+    function getState() {
+        if (window.Rewards && window.Rewards._state) return window.Rewards._state;
+        try { return JSON.parse(localStorage.getItem('rewardsV1') || '{}') || {}; }
+        catch { return {}; }
+    }
+
     function sync() {
-        if (!hdrRose || !roseKeyCount) return;
-        const val = parseInt(hdrRose.textContent, 10) || 0;
+        if (!roseKeyCount) return;
+        const s = getState();
+        const val = Number(s.roseTotal || 0);
         roseKeyCount.textContent = val;
     }
 
     sync();
-
     window.addEventListener('rewards:update', sync);
-
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') sync();
     });
 })();
+
 
 function applyHighlight(matches) {
     // 모든 슬롯에서 하이라이트 제거
@@ -755,4 +812,41 @@ function applyHighlight(matches) {
         const slot = document.querySelectorAll(".puzzle-slot")[idx];
         if (slot) slot.classList.add("highlight");
     });
+}
+
+function resetAllLocalStorage() {
+    localStorage.clear();
+    location.reload(); // 필요 시 페이지 새로고침으로 상태 초기화
+}
+
+// 아이콘 기본 복구: 슬롯 6칸(h1~h6)만 기본 아이콘으로 되돌림
+function resetAllyIconsToDefault() {
+    try {
+        // 1) 커스텀 아이콘 제거
+        for (let i = 1; i <= 6; i++) {
+            localStorage.removeItem(`allyIcon:${i}`);
+        }
+
+        // 2) DOM의 슬롯 이미지 즉시 기본 경로로 복원
+        for (let i = 1; i <= 6; i++) {
+            const slot = document.getElementById('h' + i);
+            if (!slot) continue;
+            const img = slot.querySelector('img');
+            if (!img) continue;
+            img.src = `icons/h${i}.png`; // 기본 아이콘 파일명 규칙
+            img.alt = `ally ${i}`;
+        }
+
+        // 3) (선택) 크롭 모달이 열려 있을 수도 있으니 닫기만
+        const cropModal = document.getElementById('iconCropModal');
+        if (cropModal && typeof showModal === 'function') {
+            showModal(cropModal, false);
+        }
+
+        // 4) 필요 시, 다른 화면에서도 6칸 아이콘을 다시 적용하도록 이벤트 브로드캐스트
+        window.dispatchEvent(new CustomEvent('allyIcon:reset'));
+    } catch (e) {
+        alert('아이콘 복구 중 오류가 발생했습니다.');
+        console.error(e);
+    }
 }

@@ -77,11 +77,10 @@ footer button {
   top: 30%;
   left: 0;
   width: 100%;
-  /* 롤백: 60dvh → 60% */
   height: 60%;
   background: rgba(255, 255, 255, 1);
   border-top: 2px solid #ccc;
-  z-index: 10;
+  z-index: 7000;
   opacity: 1;
   transform: none;
   transition: none !important;
