@@ -143,7 +143,7 @@ function restoreAdventureState() {
             EnemyHP.current = Math.max(0, Math.min(s.enemy.max, s.enemy.current));
             EnemyHP.updateBar();
         } else {
-            EnemyHP.init(randomEnemyMaxHP());
+            EnemyHP.init(1000); // 또는 여기서 아무 것도 하지 않고, 호출부에서 1000을 세팅하게 할 수도 있음
         }
 
         if (s.ally && typeof s.ally.current === 'number' && typeof s.ally.max === 'number') {
@@ -334,17 +334,6 @@ function resetSlotIcon(slot) {
     slot.style.backgroundImage = `url("icons/${element}.png")`;
     slot.style.backgroundSize = "cover";
 }
-
-// 초기화 실행
-document.addEventListener("DOMContentLoaded", () => {
-    // 적 HP 바 세팅(저장본 없으면 랜덤 초기화)
-    if (!restoreAdventureState()) {
-        EnemyHP.init(randomEnemyMaxHP());
-        initPuzzleBoard();
-        saveAdventureState();
-    }
-});
-
 
 // 상, 하, 좌, 우, ↘, ↖, ↙, ↗
 const directions = [
@@ -1329,8 +1318,19 @@ function applyCustomAllyIconsToSlots() {
     }
 }
 
+
 // 첫 로딩 때 한 번 적용
 document.addEventListener('DOMContentLoaded', () => {
     applyCustomAllyIconsToSlots();
 });
 
+document.addEventListener('DOMContentLoaded', () => {
+  if (!restoreAdventureState()) {
+    // 랭크1 시작은 항상 1000
+    EnemyHP.init(1000);
+    initPuzzleBoard();
+    turnMovesLeft = turnMovesMax;
+    updateTurnGauge();
+    saveAdventureState();
+  }
+});

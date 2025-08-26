@@ -61,9 +61,7 @@
   <main class="main-container">
     <div class="main-buttons">
       <button class="main-btn" id="btnAdventure">모험</button>
-      <button class="main-btn" id="btnCardTeam">팀편성</button>
-      <button onclick="resetAllLocalStorage()">전체 초기화</button>
-      <button onclick="resetAllyIconsToDefault()">아이콘 초기화</button>
+      <button class="main-btn" id="btnCardTeam">도감</button>
     </div>
   </main>
 
@@ -184,7 +182,10 @@
   <!-- 1단계: 카드 - 팀편성 팝업 -->
   <div class="popup" id="CardTeam">
     <div class="popupContent">
-      <h2>팀편성</h2>
+      <h2>도감</h2>
+      <button id="btnBestiary">적도감</button>
+      <button onclick="resetAllLocalStorage()">전체 초기화</button>
+      <button onclick="resetAllyIconsToDefault()">아이콘 초기화</button>
     </div>
   </div>
 
@@ -368,6 +369,64 @@
       </div>
     </div>
   </div>
+<!-- 적도감 팝업 -->
+<div class="popup" id="BestiaryPopup" style="display:none">
+  <div class="popupContent">
+    <h2>적 도감(간단 편집)</h2>
+
+    <!-- 속성 선택 -->
+    <div class="row" style="margin:8px 0 12px; display:flex; gap:8px; align-items:center;">
+      <label for="bestAttr">속성</label>
+      <select id="bestAttr">
+        <option value="s">S(적)</option>
+        <option value="m">M(백)</option>
+        <option value="e">E</option>
+        <option value="w">W</option>
+        <option value="n">N</option>
+        <option value="l">L</option>
+      </select>
+      <button id="bestClose" style="margin-left:auto">닫기</button>
+    </div>
+
+    <!-- 그리드(모티프 목록) -->
+    <div id="bestGrid" class="bestiary-grid"></div>
+
+    <!-- 우측/하단: 선택된 모티프 상세 -->
+    <div id="bestDetail" class="bestiary-detail" style="margin-top:12px;" hidden>
+      <div class="bd-head">
+        <img id="bestIcon" alt="아이콘 미리보기">
+        <div class="bd-meta">
+          <div class="row"><label>모티프</label><strong id="bestMotifName"></strong></div>
+          <div class="row"><label>현재 속성</label><strong id="bestAttrView"></strong></div>
+        </div>
+      </div>
+
+      <div class="bd-actions">
+        <div class="col">
+          <h4>보스 일러스트</h4>
+          <img id="bestBossPrev" alt="보스 프리뷰">
+          <div class="btn-row">
+            <button id="bestBossURL">URL입력</button>
+            <button id="bestBossFile">파일업로드</button>
+            <button id="bestBossClear">기본복구</button>
+          </div>
+        </div>
+        <div class="col">
+          <h4>엘리트 보스 일러스트</h4>
+          <img id="bestElitePrev" alt="엘리트 프리뷰">
+          <div class="btn-row">
+            <button id="bestEliteURL">URL입력</button>
+            <button id="bestEliteFile">파일업로드</button>
+            <button id="bestEliteClear">기본복구</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 파일 인풋(숨김) -->
+    <input id="bestFileInput" type="file" accept="image/*" style="display:none" />
+  </div>
+</div>
 
   <script src="plan.js"></script>
   <script src="play.js"></script>

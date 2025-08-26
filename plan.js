@@ -553,35 +553,36 @@ const Rewards = (() => {
 
     // ---- 규칙 함수 ----
     function grantPoints(n) {
+        refreshFromStorage(); // ★ 저장 전에 최신 LS → 메모리 동기화
         const v = Math.max(0, Number(n) || 0);
         if (!v) return;
         state.points += v;
-        save(); updateUI(); 
+        save(); updateUI();
         window.dispatchEvent(new CustomEvent('rewards:update'));
     }
 
     function buyRose() {
-        refreshFromStorage();  // ★ 추가
+        refreshFromStorage();  
         if (state.points < 1) return;
         state.points -= 1;
         state.roseTotal += 1;
-        // 10에서 멈춤 (초과분은 멍청비용)
         state.roseCycle = Math.min(10, state.roseCycle + 1);
         save(); updateUI();
         window.dispatchEvent(new CustomEvent('rewards:update'));
     }
 
     function claimSilver() {
+        refreshFromStorage();  
         if (state.roseCycle !== 10) return;
         state.silverTotal += 1;
         state.roseCycle = 0; // 초기화
-        // 골드 해금 카운터 증가(10에서 멈춤)
         state.silverCycle = Math.min(10, state.silverCycle + 1);
         save(); updateUI();
         window.dispatchEvent(new CustomEvent('rewards:update'));
     }
 
     function claimGold() {
+        refreshFromStorage();  
         if (state.silverCycle !== 10) return;
         state.goldTotal += 1;
         state.silverCycle = 0; // 초기화
@@ -601,6 +602,10 @@ const Rewards = (() => {
         cacheElements();
         bind();
         updateUI();
+        window.addEventListener('rewards:update', () => {
+            refreshFromStorage();
+            updateUI();
+        });
     }
 
     function getRose() {
@@ -850,3 +855,155 @@ function resetAllyIconsToDefault() {
         console.error(e);
     }
 }
+// ===== 적도감(간단) =====
+(function(){
+  const btnOpen = document.getElementById('btnBestiary');
+  const popup = document.getElementById('BestiaryPopup');
+  const grid = document.getElementById('bestGrid');
+  const bestAttr = document.getElementById('bestAttr');
+  const bestClose = document.getElementById('bestClose');
+
+  const detail = document.getElementById('bestDetail');
+  const bestIcon = document.getElementById('bestIcon');
+  const bestMotifName = document.getElementById('bestMotifName');
+  const bestAttrView = document.getElementById('bestAttrView');
+
+  const bossPrev = document.getElementById('bestBossPrev');
+  const elitePrev = document.getElementById('bestElitePrev');
+  const bossURL = document.getElementById('bestBossURL');
+  const bossFile = document.getElementById('bestBossFile');
+  const bossClear = document.getElementById('bestBossClear');
+  const eliteURL = document.getElementById('bestEliteURL');
+  const eliteFile = document.getElementById('bestEliteFile');
+  const eliteClear = document.getElementById('bestEliteClear');
+  const fileInput = document.getElementById('bestFileInput');
+
+  if (!btnOpen || !popup || !grid) return;
+
+  // 모티프(하드코딩 목록) - 필요 시 텍스트만 바꾸면 됨
+  const MOTIFS = [
+    { key:'myo', name:'묘(토끼)' }, { key:'seo', name:'서(쥐)' }, { key:'yang', name:'양(양)' },
+    { key:'won', name:'원(원숭이)' }, { key:'jeo', name:'저(돼지)' }, { key:'rang', name:'랑(늑대)' },
+    { key:'gu', name:'구(개)' }, { key:'u', name:'우(소)' }, { key:'sang', name:'상(코끼리)' },
+    { key:'ho', name:'호(호랑이)' }, { key:'pyo', name:'표(표범)' }, { key:'jo', name:'조(새)' },
+    { key:'rok', name:'록(사슴)' }, { key:'ma', name:'마(말)' }, { key:'eo', name:'어(물고기)' },
+    { key:'gwi', name:'귀(거북이)' }, { key:'gyo', name:'교(상어)' },
+  ];
+  const ATTR_LABEL = { s:'S(적)', m:'M(백)', e:'E', w:'W', n:'N', l:'L' };
+
+  // 저장소 키(딱 2개만 씀)
+  const LS_BOSS  = 'bestiaryBossIllustV1';
+  const LS_ELITE = 'bestiaryEliteIllustV1';
+  const key = (attr, motif) => `${motif}|${attr}`;
+
+  // 기본 경로(하드코딩). 파일명 규칙에 맞춰 두시면 됩니다.
+  const defaultBoss  = (attr, motif)=> `enemies/boss/${motif}_${attr}.png`;
+  const defaultElite = (attr, motif)=> `enemies/elite/${motif}_${attr}.png`;
+
+  const loadMap = (lsKey)=> { try{ return JSON.parse(localStorage.getItem(lsKey)||'{}')||{} }catch{ return {} } };
+  const saveMap = (lsKey, obj)=> { try{ localStorage.setItem(lsKey, JSON.stringify(obj)); }catch{} };
+
+  // 전역 리졸버(모험 탭이 쓸 수 있게)
+  window.getBossIllustURL  = (attr, motif)=> (loadMap(LS_BOSS)[key(attr,motif)]  || defaultBoss(attr,motif));
+  window.getEliteIllustURL = (attr, motif)=> (loadMap(LS_ELITE)[key(attr,motif)] || defaultElite(attr,motif));
+
+  // 팝업 열기/닫기
+  btnOpen.addEventListener('click', ()=>{ popup.style.display='block'; renderGrid(); });
+  bestClose?.addEventListener('click', ()=>{ popup.style.display='none'; detail.hidden=true; });
+  bestAttr?.addEventListener('change', ()=> { renderDetail(); });
+
+  // 그리드 생성(가시적으로 보기 쉽게)
+  function renderGrid(){
+    grid.innerHTML = '';
+    MOTIFS.forEach(m=>{
+      const card = document.createElement('div');
+      card.className = 'bestiary-card';
+      const img = document.createElement('img');
+      img.src = `icons/mon/${m.key}.png`;
+      img.onerror = ()=>{ img.src='icons/m2.png'; };
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = m.name;
+      card.appendChild(img);
+      card.appendChild(name);
+      card.addEventListener('click', ()=> openDetail(m));
+      grid.appendChild(card);
+    });
+  }
+
+  let currentMotif = null;
+  function openDetail(m){
+    currentMotif = m;
+    detail.hidden = false;
+    bestIcon.src = `icons/mon/${m.key}.png`;
+    bestIcon.onerror = ()=>{ bestIcon.src='icons/m2.png'; };
+    bestMotifName.textContent = m.name;
+    renderDetail();
+  }
+
+  function renderDetail(){
+    if(!currentMotif) return;
+    const a = bestAttr.value || 's';
+    bestAttrView.textContent = ATTR_LABEL[a] || a;
+
+    // 프리뷰는 저장된 값(있으면 DataURL/URL) → 없으면 기본 경로
+    bossPrev.src  = window.getBossIllustURL(a,  currentMotif.key);
+    elitePrev.src = window.getEliteIllustURL(a, currentMotif.key);
+  }
+
+  // URL 입력 처리(간단)
+  bossURL?.addEventListener('click', ()=>{
+    if(!currentMotif) return;
+    const a = bestAttr.value || 's';
+    const url = prompt('보스 일러스트 URL을 입력하세요 (또는 취소로 무시)');
+    if(!url) return;
+    const map = loadMap(LS_BOSS); map[key(a,currentMotif.key)] = url; saveMap(LS_BOSS, map);
+    renderDetail();
+  });
+  eliteURL?.addEventListener('click', ()=>{
+    if(!currentMotif) return;
+    const a = bestAttr.value || 's';
+    const url = prompt('엘리트 보스 일러스트 URL을 입력하세요 (또는 취소로 무시)');
+    if(!url) return;
+    const map = loadMap(LS_ELITE); map[key(a,currentMotif.key)] = url; saveMap(LS_ELITE, map);
+    renderDetail();
+  });
+
+  // 파일 업로드 → DataURL 저장(크롭 없음, 가장 단순)
+  bossFile?.addEventListener('click', ()=>{ fileInput?.click(); fileInput._target='boss'; });
+  eliteFile?.addEventListener('click', ()=>{ fileInput?.click(); fileInput._target='elite'; });
+
+  fileInput?.addEventListener('change', (e)=>{
+    const f = e.target.files?.[0]; if(!f || !currentMotif) return;
+    const a = bestAttr.value || 's';
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const dataURL = reader.result; // 그대로 저장
+      if (fileInput._target==='boss'){
+        const map = loadMap(LS_BOSS); map[key(a,currentMotif.key)] = dataURL; saveMap(LS_BOSS, map);
+      } else {
+        const map = loadMap(LS_ELITE); map[key(a,currentMotif.key)] = dataURL; saveMap(LS_ELITE, map);
+      }
+      renderDetail();
+      fileInput.value='';
+      fileInput._target='';
+      // 모험 탭이 보고 있다면 즉시 반영하도록 이벤트 송출(선택)
+      window.dispatchEvent(new CustomEvent('bestiary:update', { detail:{ attr:a, motif:currentMotif.key } }));
+    };
+    reader.readAsDataURL(f);
+  });
+
+  // 기본 복구(삭제)
+  bossClear?.addEventListener('click', ()=>{
+    if(!currentMotif) return;
+    const a = bestAttr.value || 's';
+    const map = loadMap(LS_BOSS); delete map[key(a,currentMotif.key)]; saveMap(LS_BOSS, map);
+    renderDetail();
+  });
+  eliteClear?.addEventListener('click', ()=>{
+    if(!currentMotif) return;
+    const a = bestAttr.value || 's';
+    const map = loadMap(LS_ELITE); delete map[key(a,currentMotif.key)]; saveMap(LS_ELITE, map);
+    renderDetail();
+  });
+})();

@@ -534,3 +534,26 @@ body.no-scroll {
   font-size: 12px;
   opacity: .9;
 }
+
+/* === 적도감(간단) === */
+.bestiary-grid{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(72px, 1fr));
+  gap:10px;
+}
+.bestiary-card{
+  background:#1e2127; border:1px solid #333; border-radius:12px; padding:8px; text-align:center; cursor:pointer;
+}
+.bestiary-card img{
+  width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px; background:#2a2f3a;
+}
+.bestiary-card .name{ margin-top:6px; font-size:12px; color:#ddd; }
+
+.bestiary-detail{ border:1px solid #333; border-radius:12px; padding:12px; background:#14161a; }
+.bestiary-detail[hidden]{ display:none; }
+.bestiary-detail .bd-head{ display:flex; gap:12px; align-items:center; }
+.bestiary-detail .bd-head img{ width:72px; height:72px; border-radius:8px; object-fit:cover; background:#2a2f3a; }
+.bestiary-detail .bd-meta .row{ display:flex; gap:8px; align-items:center; margin:4px 0; }
+.bestiary-detail .bd-actions{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+.bestiary-detail .bd-actions img{ width:100%; aspect-ratio:1/1; object-fit:cover; border:1px solid #444; border-radius:8px; background:#222; }
+.bestiary-detail .btn-row{ display:flex; gap:8px; margin-top:6px; }
