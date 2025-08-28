@@ -2,7 +2,6 @@ const CACHE_NAME_PLAN = 'pwa-plan-v2';
 
 // 사전 캐시
 const ASSETS_PLAN = [
-  './',
   './index.html',
   './plan.css',
   './plan.js',
