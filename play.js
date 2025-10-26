@@ -5,7 +5,7 @@ let isResolving = false;
 let turnDamageTotal = 0;   
 
 function randomEnemyDelta() {
-    return 500 + Math.floor(Math.random() * 11) * 100;  // 500..1500
+    return 500 + Math.floor(Math.random() * 11) * 1;  // 500..1500 여기 1을 100으로
 }
 
 // HP 상태 관리
@@ -47,6 +47,12 @@ document.addEventListener("DOMContentLoaded", () => {
     HP.init();
 });
 
+function recalcTotalHP() {
+    HP.max = allies.reduce((sum, u) => sum + (u.maxHp || 0), 0);
+    HP.current = allies.reduce((sum, u) => sum + (u.hp || 0), 0);
+    HP.updateBar();
+}
+
 /* === Enemy HP Manager & Rank/State Utils === */
 const EnemyHP = {
     max: 1000,
@@ -82,21 +88,28 @@ function bumpRank() {
     const KEY = 'profileV1';
     let obj = {};
     try { obj = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch { }
+
     const cur = Number(obj.rank || 1);
-    obj.rank = cur + 1;
+    obj.rank = cur + 1; // 랭크 상승
     localStorage.setItem(KEY, JSON.stringify(obj));
 
     // Profile 모듈이 있으면 상태도 갱신
     if (window.Profile && Profile.state) {
         Profile.state.rank = obj.rank;
     }
+
     // 헤더 즉시 반영
     const el = document.getElementById('headerRank');
     if (el) el.textContent = obj.rank;
 
+    // ✅ 버튼에도 즉시 반영
+    const rankBtn = document.getElementById('btnToggleFooterZ');
+    if (rankBtn) rankBtn.textContent = `Rank ${obj.rank}`;
+
     // 프로필 렌더 요청(아래 3-C-2와 세트)
     window.dispatchEvent(new CustomEvent('profile:update'));
 }
+
 
 // 모험 상태 저장키
 const ADV_LS_KEY = 'adventureV1';
@@ -106,9 +119,24 @@ function saveAdventureState() {
     try {
         const state = {
             board: getBoardState(),
-            enemy: { current: EnemyHP.current, max: EnemyHP.max },
+            enemy: {
+                current: EnemyHP.current,
+                max: EnemyHP.max,
+                codes: currentEnemy.codes,
+                tiers: currentEnemy.tiers,
+                attr: currentEnemy.attr
+            },
             ally: { current: HP.current, max: HP.max },
-            turnMovesLeft
+            turnMovesLeft,
+            allies: allies.map(a => ({
+                id: a.id,
+                hp: a.hp,
+                maxHp: a.maxHp,
+                attack: a.attack,
+                heal: a.heal,
+                cooldownLeft: a.cooldownLeft || 0,
+                cooldownMax: a.cooldownMax || 5
+            }))
         };
         localStorage.setItem(ADV_LS_KEY, JSON.stringify(state));
     } catch { }
@@ -136,30 +164,77 @@ function restoreAdventureState() {
         const s = JSON.parse(raw);
         if (!s || !Array.isArray(s.board)) return false;
 
+        // 🧩 퍼즐판 복원
         applyBoardState(s.board);
 
-        if (s.enemy && typeof s.enemy.current === 'number' && typeof s.enemy.max === 'number') {
+        // 🐉 적 상태 복원
+        if (s.enemy && typeof s.enemy.current === "number" && typeof s.enemy.max === "number") {
             EnemyHP.max = s.enemy.max;
             EnemyHP.current = Math.max(0, Math.min(s.enemy.max, s.enemy.current));
             EnemyHP.updateBar();
+
+            if (s.enemy.codes && s.enemy.tiers && s.enemy.attr) {
+                ["left", "center", "right"].forEach((pos, i) => {
+                    const img = document.querySelector(`#monster-${pos} img`);
+                    if (img) img.src = `enemy/${s.enemy.codes[i]}${s.enemy.tiers[i]}${s.enemy.attr}.png`;
+                });
+                window.currentEnemy = {
+                    codes: s.enemy.codes,
+                    tiers: s.enemy.tiers,
+                    attr: String(s.enemy.attr)
+                };
+            }
         } else {
-            EnemyHP.init(1000); // 또는 여기서 아무 것도 하지 않고, 호출부에서 1000을 세팅하게 할 수도 있음
+            EnemyHP.init(1000);
         }
 
-        if (s.ally && typeof s.ally.current === 'number' && typeof s.ally.max === 'number') {
-            HP.max = s.ally.max;
-            HP.current = Math.max(0, Math.min(HP.max, s.ally.current));
-            updateAllyHPBar();
-        } else {
+        // 🩸 아군 HP 복원
+        if (s.ally) {
+            HP.max = s.ally.max || HP.max;
+            HP.current = Math.max(0, Math.min(HP.max, s.ally.current || HP.current));
             updateAllyHPBar();
         }
 
-        if (typeof s.turnMovesLeft === 'number') {
-            turnMovesLeft = Math.max(0, Math.min(turnMovesMax, s.turnMovesLeft | 0));
+        // 🧭 턴 정보 복원
+        if (typeof s.turnMovesLeft === "number") {
+            turnMovesLeft = Math.max(0, Math.min(turnMovesMax, s.turnMovesLeft));
         }
         updateTurnGauge();
+
+        // 🧩 아군 쿨타임 복원
+        if (s.allies && Array.isArray(s.allies)) {
+            s.allies.forEach(saved => {
+                const a = allies.find(x => x.id === saved.id);
+                if (a) {
+                    a.hp = saved.hp;
+                    a.maxHp = saved.maxHp;
+                    a.attack = saved.attack;
+                    a.heal = saved.heal;
+                    a.cooldownLeft =
+                        (saved.cooldownLeft !== undefined && saved.cooldownLeft > 0)
+                            ? saved.cooldownLeft
+                            : a.cooldownMax;
+                    a.cooldownMax = saved.cooldownMax || 5;
+
+                    if (a.cooldownLeft > a.cooldownMax) {
+                        a.cooldownLeft = a.cooldownMax;
+                    }
+                }
+            });
+        }
+        updateAllAllyUI?.();
+
+        // 랭크/버튼 복원
+        const profile = JSON.parse(localStorage.getItem("profileV1") || "{}") || {};
+        const rank = Number(profile.rank || 1);
+        const rankBtn = document.getElementById("btnToggleFooterZ");
+        if (rankBtn) rankBtn.textContent = `Rank ${rank}`;
+        const hdrRank = document.getElementById("headerRank");
+        if (hdrRank) hdrRank.textContent = rank;
+
         return true;
-    } catch {
+    } catch (err) {
+        console.warn("⚠️ restoreAdventureState 실패:", err);
         return false;
     }
 }
@@ -168,33 +243,56 @@ function clearAdventureState() {
     try { localStorage.removeItem(ADV_LS_KEY); } catch { }
 }
 
-// 적 처치 → 랭크 +1, 적 HP 랜덤 재설정, 퍼즐 초기화
 function onEnemyDefeated() {
-    // 1) 랭크 상승 즉시 반영
-    bumpRank();  // 아래 3-C에서 즉시 반영되도록 고침
+    // ✅ 스테이지 증가
+    const current = Number(localStorage.getItem('currentStage') || 1);
+    localStorage.setItem('currentStage', current + 1);
+    updateStageButtonText();
 
-    // 2) 퍼즐 저장본 초기화
-    clearAdventureState();
+    // 🕒 랭크 업 먼저 처리
+    bumpRank();
 
-    // 3) 다음 적 HP = '이전 최대 HP' + '랜덤(500..1500, 100단위)'
+    // 💾 기존 모험 상태 지우기 전에 새 랭크용 세팅 준비
     const nextMax = EnemyHP.max + randomEnemyDelta();
     EnemyHP.init(nextMax);
+    spawnEnemiesByStage();
 
-    // 4) 퍼즐도 새 판
+    // 🩸 HP 및 스킬 쿨타임 완전 초기화
+    allies.forEach(a => {
+        if (a) {
+            a.hp = a.maxHp;
+            a.cooldownLeft = a.cooldownMax;
+            a.skillReady = false;
+        }
+    });
+    HP.current = HP.max;
+    updateAllyHPBar();
+    updateAllAllyUI?.();
+
+    // 🔄 모험 상태 초기화 (이제 해도 됨)
+    clearAdventureState();
+
+    // 🧭 턴/보드 초기화
     initPuzzleBoard();
     turnMovesLeft = turnMovesMax;
     updateTurnGauge();
 
-    // 5) 새 상태 저장
+    // 💾 새 상태 저장
     saveAdventureState();
 }
-
 
 // 아군 전멸 → 퍼즐만 초기화
 function onPartyDefeated() {
     clearAdventureState();
     initPuzzleBoard();                 // 새 퍼즐
     turnMovesLeft = turnMovesMax;
+    allies.forEach(a => {
+        if (a) {
+            a.hp = a.maxHp;
+            a.cooldownLeft = a.cooldownMax;
+            a.skillReady = false;
+        }
+    });
     updateTurnGauge();
     saveAdventureState();
 }
@@ -210,7 +308,6 @@ const elements = ["l", "m", "n", "e", "w", "s"];
 function initPuzzleBoard() {
     const slots = document.querySelectorAll(".puzzle-slot");
     slots.forEach(slot => {
-        // 랜덤 원소 배정
         const element = elements[Math.floor(Math.random() * elements.length)];
         slot.dataset.element = element;
         slot.style.backgroundImage = `url("icons/${element}.png")`;
@@ -321,13 +418,11 @@ document.addEventListener("click", () => {
 });
 
 function resetSlotIcon(slot) {
-    if (!slot) {
-        return;
-    }
+    if (!slot) return;
 
     const element = slot.dataset.element;
-    if (!element) {
-        slot.style.backgroundImage = "none"; // element가 비었을 경우 확실히 제거
+    if (!element || element === "undefined") {
+        slot.style.backgroundImage = "none";
         return;
     }
 
@@ -526,7 +621,6 @@ function resolveBoard() {
     moveCount = 0;
 }
 
-// 기존 resolveBoardStep 내부 수정
 function resolveBoardStep() {
     const board = getBoardState();
     const matches = findMatches(board);
@@ -578,16 +672,14 @@ function resolveBoardStep() {
             turnDamageTotal = 0;   // 다음 턴 대비 초기화
         }
 
+        handleTurnAdvance();  
         moveCount = 0;
 
         // (있는 경우) 이번 턴 로그 출력/초기화
         combatLog.forEach(line => console.log(line));
         combatLog = [];
 
-        // ✅ 이 턴에 '정확히 1번'만 스킬 쿨다운 진행
-        if (typeof onTurnEnded_ForSkills === 'function') {
-            onTurnEnded_ForSkills();
-        }
+
 
         // ✅ 다음 턴 준비: 게이지/표시 리셋
         turnMovesLeft = turnMovesMax;
@@ -646,14 +738,14 @@ function resolveBoard() {
 }
 
 
-// 아군 팀 데이터
+// 아군 팀 데이터 밸런스
 const allies = [
-    { id: 1, name: "리더", element: "", attack: 1, heal: 5, maxHp: 1000, hp: 1000 },
-    { id: 2, name: "현무", element: "n", attack: 20, heal: 5, maxHp: 100, hp: 100 },
-    { id: 3, name: "주작", element: "s", attack: 30, heal: 5, maxHp: 100, hp: 100 },
-    { id: 4, name: "청룡", element: "e", attack: 25, heal: 5, maxHp: 100, hp: 100 },
-    { id: 5, name: "백호", element: "w", attack: 28, heal: 5, maxHp: 100, hp: 100 },
-    { id: 6, name: "기린", element: "m", attack: 35, heal: 5, maxHp: 100, hp: 100 }
+    { id: 1, name: "리더", element: "", attack: 50, heal: 5, maxHp: 1000, hp: 1000 },
+    { id: 2, name: "현무", element: "n", attack: 10, heal: 5, maxHp: 100, hp: 100 },
+    { id: 3, name: "주작", element: "s", attack: 10, heal: 5, maxHp: 100, hp: 100 },
+    { id: 4, name: "청룡", element: "e", attack: 10, heal: 5, maxHp: 100, hp: 100 },
+    { id: 5, name: "백호", element: "w", attack: 10, heal: 5, maxHp: 100, hp: 100 },
+    { id: 6, name: "기린", element: "m", attack: 10, heal: 5, maxHp: 100, hp: 100 }
 ];
 
 // 전투 로그 관리
@@ -685,6 +777,32 @@ window.addEventListener('DOMContentLoaded', () => {
     if (roseUI) roseUI.textContent = val;
 });
 
+// ====================== 속성 상성 (아군 기준, 상대등 지정 원본 유지) ======================
+const ELEMENT_MULTIPLIER = {
+    n: { m: 2, n: 0.5, default: 1 },
+    s: { w: 2, e: 0.5, default: 1 },
+    e: { s: 2, w: 0.5, default: 1 },
+    w: { e: 2, s: 0.5, default: 1 },
+    m: { n: 2, m: 0.5, default: 1 }
+};
+
+// ====================== 숫자 → 문자 매핑 ======================
+const ATTR_NUM_TO_LETTER = {
+    '1': 'n', // 어둠(현무)
+    '2': 's', // 불(주작)
+    '3': 'e', // 물(청룡)
+    '4': 'w', // 바람(백호)
+    '5': 'm'  // 빛(기린)
+};
+
+// ====================== 배율 계산 함수 ======================
+function getDamageMultiplier(allyAttr, enemyAttr) {
+    const table = ELEMENT_MULTIPLIER[allyAttr];
+    if (!table) return 1;
+    return table[enemyAttr] || table.default;
+}
+
+// ====================== 전투 결과 처리 ======================
 function applyCombatResults(matches) {
     let totalDamage = 0;
     let totalHeal = 0;
@@ -693,59 +811,75 @@ function applyCombatResults(matches) {
 
     let totalMatchCount = 0;
 
+    // 🧭 적 속성 정규화 (숫자 → 문자)
+    let enemyAttr = window.currentEnemy?.attr ?? 'n';
+    if (typeof enemyAttr === 'number' || /^\d+$/.test(String(enemyAttr))) {
+        const key = String(enemyAttr);
+        enemyAttr = ATTR_NUM_TO_LETTER[key] || String(enemyAttr);
+    } else {
+        enemyAttr = String(enemyAttr);
+    }
+
+    console.log('🎯 [DEBUG] enemyAttr(normalized):', enemyAttr);
+
     for (const [element, count] of Object.entries(matches)) {
         if (!count) continue;
 
+        // 💖 회복 속성
         if (element === "l") {
             allies.slice(1).forEach((u) => {
-                if (!u) return;
-
                 const intendedHeal = u.heal * count;
                 const actualHeal = Math.min(intendedHeal, u.maxHp - u.hp);
-
                 totalIntendedHeal += intendedHeal;
                 if (actualHeal > 0) {
                     u.hp += actualHeal;
                     totalHeal += actualHeal;
                 }
             });
-
             HP.changeHP(totalHeal);
-            // combatLog.push(`💖 총 회복 ${totalHeal}`);
-        } else {
+        }
+
+        // ⚔️ 공격 속성
+        else {
             const ally = allies.find(u => u && u.element === element);
             if (ally) {
-                const damage = ally.attack * count;
-                totalDamage += damage;
-                // combatLog.push(`⚔️ ${ally.name} → ${damage} 공격`);
-                effects.push(() => showCombatEffect(ally.id, damage, false));
-            }
+                // ✅ 아군 기준 상성 적용
+                const mult = getDamageMultiplier(ally.element, enemyAttr);
+                const baseDamage = ally.attack * count;
+                const damage = Math.round(baseDamage * mult);
 
+                totalDamage += damage;
+                effects.push(() => showCombatEffect(ally.id, damage, false));
+
+                console.log(`⚔️ [${ally.name}] → attr:${ally.element}, enemy:${enemyAttr}, count:${count}, mult:${mult}, dmg:${damage}`);
+            }
             totalMatchCount += count;
         }
     }
 
-    // 리더 캐릭터는 모든 속성 매칭 합산 공격
-    const leader = allies.find(u => u && u.element === "");
+    // 👑 리더(무속성)
+    const leader = allies.find(u => u && !u.element);
     if (leader && totalMatchCount > 0) {
         const damage = leader.attack * totalMatchCount;
         totalDamage += damage;
-        // combatLog.push(`⚔️ ${leader.name} → ${damage} 공격`);
         effects.push(() => showCombatEffect(leader.id, damage, false));
     }
-    turnDamageTotal += totalDamage;
-    updateAllyHPBar();
 
+    // ✅ 누적 피해만 기록 (즉시 반영 금지)
+    turnDamageTotal += totalDamage;
+
+    // ❤️ 회복 이펙트
     if (totalIntendedHeal > 0) {
-        requestAnimationFrame(() => {
-            showHealTotalEffect(totalIntendedHeal);
-        });
+        requestAnimationFrame(() => showHealTotalEffect(totalIntendedHeal));
     }
 
-    requestAnimationFrame(() => {
-        effects.forEach(fn => fn());
-    });
+    // ✨ 공격 이펙트
+    requestAnimationFrame(() => effects.forEach(fn => fn()));
+
+    // UI 갱신
+    updateAllyHPBar();
 }
+
 
 function showHealTotalEffect(value) {
     const hpBar = document.querySelector(".hp-bar");
@@ -825,15 +959,68 @@ function showCombatEffect(index, value, isHeal = false) {
     }, 2500);
 }
 
+// 전역에 이미 있으면 생략 가능
+let isDefeated = false;
+
+function applyEnemyAttack(damageValue) {
+    // 🛡️ 무적 판정 (가장 먼저 수행)
+    if (window.nextTurnInvincible > 0) {
+        console.log("🛡️ 월광수호 발동! 이번 턴 피해 0");
+        // ① 이번 턴 공격은 무시 하고
+        // ② 턴 이 끝난 뒤(즉 handleTurnAdvance에서) 감소시키게 한다
+        return;
+    }
+
+    // ⚔️ 실제 데미지 적용
+    HP.current = Math.max(0, HP.current - damageValue);
+    HP.updateBar();
+
+    // 💥 시각 효과
+    const hpText = document.querySelector(".hp-text");
+    if (hpText) {
+        const indicator = document.createElement("div");
+        indicator.className = "damage-indicator total";
+        indicator.textContent = `-${damageValue}`;
+        hpText.appendChild(indicator);
+        setTimeout(() => indicator.remove(), 2000);
+    }
+
+    // 💀 전멸 판정
+    if (!isDefeated && HP.current <= 0) {
+        isDefeated = true;
+        setTimeout(() => {
+            if (confirm("💀 아군이 전멸했습니다!")) {
+                const KEY = 'profileV1';
+                let profile = {};
+                try { profile = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch { }
+                const curRank = Number(profile.rank || 1);
+                profile.rank = curRank > 3 ? curRank - 3 : 1;
+                localStorage.setItem(KEY, JSON.stringify(profile));
+
+                // 체력 완전 회복
+                HP.current = HP.max;
+                HP.updateBar();
+                EnemyHP.current = EnemyHP.max;
+                EnemyHP.updateBar();
+
+                const rankBtn = document.getElementById('btnToggleFooterZ');
+                if (rankBtn) rankBtn.textContent = `Rank ${profile.rank}`;
+
+                if (typeof saveAdventureState === 'function') saveAdventureState();
+                isDefeated = false;
+            }
+        }, 500);
+    }
+}
 
 /* ======================= Allies: Skill Cooldown Fields ======================= */
 /* 각 캐릭터에 스킬 쿨타임(최대/남은), 준비 여부, 잠금 여부 필드 부여 */
 const SKILL_COOLDOWN_DEFAULTS = {
-    1: 2,   // 리더: 스킬 없음
-    2: 2,   // 현무: 2턴
-    3: 3,   // 주작: 3턴
-    4: 4,   // 청룡: 4턴 
-    5: 5,   // 백호: 5턴
+    1: 7,   // 리더: 7턴
+    2: 3,   // 현무: 3턴
+    3: 4,   // 주작: 4턴
+    4: 5,   // 청룡: 5턴 
+    5: 6,   // 백호: 6턴
     6: 7    // 기린: 7턴
 };
 
@@ -936,10 +1123,11 @@ function updateAllyUI(slot, ally) {
 /* 턴 종료 시 호출: 쿨타임 진행 & 준비 상태 갱신 */
 function progressSkillCooldowns() {
     allies.forEach(a => {
-        if (a.locked || a.cooldownMax <= 0) return;
-        if (a.skillReady) return; // 이미 준비완료면 유지
-        a.cooldownLeft = Math.max(0, a.cooldownLeft - 1);
-        if (a.cooldownLeft === 0) a.skillReady = true;
+        if (!a || a.locked || a.cooldownMax <= 0) return;
+        if (a.cooldownLeft > 0) {
+            a.cooldownLeft--;
+            if (a.cooldownLeft === 0) a.skillReady = true;
+        }
     });
     updateAllAllyUI();
 }
@@ -986,12 +1174,6 @@ function openStatusWindow(ally) {
     // TODO: 상태창 열기 (이름/공격/체력/쿨타임 등 표시)
     console.log(`[상태창] ${ally.name} HP:${ally.hp}/${ally.maxHp} CD:${ally.cooldownLeft}/${ally.cooldownMax}`);
 }
-function openSkillWindow(ally) {
-    // TODO: 스킬창 열기 → 사용 확정 시 consumeSkill(ally) 호출
-    console.log(`[스킬창] ${ally.name} 스킬 사용 가능!`);
-    // 예시: 사용 즉시 소비하려면 아래 한 줄
-    // consumeSkill(ally);
-}
 
 /* ======================= Inline Keyframes (JS 삽입) ======================= */
 (function injectHaloKeyframes() {
@@ -1025,72 +1207,383 @@ function bindModalClose(container) {
     });
 }
 
-/* ======================= 팝업 구현체 ======================= */
+
+//* ======================= 팝업 구현체 ======================= */
 function openStatusWindow(ally) {
-  const modal = document.getElementById('ally-status-modal');
-  if (!modal) return;
+    const modal = document.getElementById('ally-status-modal');
+    if (!modal) return;
 
-  const portraitEl = document.getElementById('allyStatusPortrait');
-  const titleEl = modal.querySelector('.ally-modal__title');
-  const contentEl = document.getElementById('ally-status-content');
+    const portraitEl = document.getElementById('allyStatusPortrait');
+    const titleEl = modal.querySelector('.ally-modal__title');
+    const contentEl = document.getElementById('ally-status-content');
 
-  // Inject ally portrait
+    // 🖼️ 캐릭터 초상 표시
     if (portraitEl) {
         const fallback = ally.element ? `icons/${ally.element}l.png` : `icons/ll.png`;
         portraitEl.src = fallback;
         portraitEl.alt = ally.name;
     }
 
+    // 🏷️ 이름 표시
+    if (titleEl) titleEl.textContent = ally.name;
 
-  // Update title
-  if (titleEl) {
-    titleEl.textContent = ally.name;
-  }
-
-  // Update content one-to-one
-  if (contentEl) {
-    contentEl.innerHTML = `
+    // 📊 능력치 표시
+    if (contentEl) {
+        contentEl.innerHTML = `
       <p><strong>HP:</strong> ${ally.hp} / ${ally.maxHp}</p>
       <p><strong>Attack:</strong> ${ally.attack}</p>
       <p><strong>Heal:</strong> ${ally.heal}</p>
       <p><strong>Cooldown:</strong> ${ally.cooldownLeft} / ${ally.cooldownMax}</p>
     `;
-  }
+    }
 
-  showModal(modal, true);
+    // 모달 표시
+    showModal(modal, true);
 
+    // 🎨 아이콘 변경 버튼
     const changeBtn = modal.querySelector('.ally-modal__footer .ally-modal__ok:not(#enhance-button):not([data-close])');
     if (changeBtn) {
         changeBtn.onclick = () => startChangeIconFlow(ally);
     }
+
+    // 🩹 복구 버튼 (현재 캐릭터만 초기화)
+    const restoreBtn = modal.querySelector('#restore-button');
+    if (restoreBtn) {
+        restoreBtn.onclick = () => {
+            try {
+                // ally.id가 1~6 숫자라고 가정 (h1~h6)
+                const slot = document.getElementById('h' + ally.id);
+                if (!slot) {
+                    alert('⚠️ 복구할 슬롯을 찾을 수 없습니다.');
+                    return;
+                }
+
+                const img = slot.querySelector('img');
+                if (!img) {
+                    alert('⚠️ 해당 슬롯의 이미지 요소가 없습니다.');
+                    return;
+                }
+
+                // 기본 아이콘 경로 재설정
+                const path = `icons/h${ally.id}.png`;
+                img.src = path;
+                img.alt = `ally ${ally.id}`;
+
+                // 로컬스토리지 갱신
+                localStorage.setItem(`allyIcon:${ally.id}`, path);
+
+                // 필요 시 브로드캐스트 (다른 화면 반영용)
+                window.dispatchEvent(new CustomEvent('allyIcon:resetOne', { detail: ally.id }));
+
+            } catch (e) {
+                console.error(e);
+            }
+        };
+    }
+
 }
+// ======================= 강화 로직 (실버키 / 골드키 분리형 + 즉시 반영형) =======================
+function enhanceCharacter(target) {
+    if (!target || !target.id) return;
+
+    // 🔹 Rewards 미정의 시 복구 시도
+    if (!window.Rewards || !window.Rewards._state) {
+        try {
+            const saved = JSON.parse(localStorage.getItem("rewardsV1") || "{}");
+            window.Rewards = { _state: saved };
+            console.warn("⚠️ Rewards 복구 시도:", saved);
+        } catch {
+            alert("보상 시스템이 초기화되지 않았습니다!");
+            return;
+        }
+    }
+
+    const R = window.Rewards?._state;
+    if (!R) { alert("보상 시스템이 초기화되지 않았습니다!"); return; }
+
+    // 🥇 리더 전용 (골드키)
+    if (target.id === 1) {
+        if (R.goldTotal <= 0) {
+            alert("⚠️ 골드키가 부족합니다!");
+            return;
+        }
+
+        target.attack += 500;
+        target.maxHp += 1000;
+        target.heal += 200;
+        target.hp = target.maxHp;
+
+        R.goldTotal--;
+        alert(`👑 ${target.name} 강화 완료! (골드키 -1)`);
+    }
+
+    // 🥈 일반 아군 전용 (실버키)
+    else {
+        if (R.silverTotal <= 0) {
+            alert("⚠️ 실버키가 부족합니다!");
+            return;
+        }
+
+        target.attack += 100;
+        target.maxHp += 250;
+        target.heal += 100;
+        target.hp = Math.min(target.hp + 250, target.maxHp);
+
+        R.silverTotal--;
+        alert(`🛡️ ${target.name} 강화 완료! (실버키 -1)`);
+    }
+
+    // 💾 키 상태 저장 및 헤더 UI 갱신
+    localStorage.setItem("rewardsV1", JSON.stringify(R));
+    window.dispatchEvent(new CustomEvent('rewards:update'));
+
+    // 🩸 HP 및 아군 UI 갱신 (즉시 반영)
+    recalcTotalHP();           // 파티 전체 HP바 재계산
+    updateAllAllyUI?.();       // 아군 전체 UI 갱신
+    updateAllyHPBar?.();       // 개별 HP바 갱신
+
+    // ⚙️ 상태창(열린 경우) 즉시 갱신
+    const contentEl = document.getElementById('ally-status-content');
+    if (contentEl) {
+        contentEl.innerHTML = `
+            <p><strong>HP:</strong> ${target.hp} / ${target.maxHp}</p>
+            <p><strong>Attack:</strong> ${target.attack}</p>
+            <p><strong>Heal:</strong> ${target.heal}</p>
+            <p><strong>Cooldown:</strong> ${target.cooldownLeft} / ${target.cooldownMax}</p>
+        `;
+    }
+
+    // ✅ 강화된 아군 정보도 저장 (새로고침 후에도 유지)
+    try {
+        const advData = JSON.parse(localStorage.getItem(ADV_LS_KEY) || "{}");
+        advData.allies = allies.map(a => ({
+            id: a.id,
+            name: a.name,
+            element: a.element,
+            attack: a.attack,
+            heal: a.heal,
+            maxHp: a.maxHp,
+            hp: a.hp,
+            cooldownLeft: a.cooldownLeft,
+            cooldownMax: a.cooldownMax,
+            skillReady: a.skillReady
+        }));
+        // 🩸 파티 전체 HP값도 함께 저장
+        advData.ally = {
+            max: HP.max,
+            current: HP.current
+        };
+        localStorage.setItem(ADV_LS_KEY, JSON.stringify(advData));
+    } catch (e) {
+        console.warn("⚠️ 강화 데이터 저장 중 오류:", e);
+    }
+
+    console.log(`💪 강화 완료: ${target.name} (ATK:${target.attack}, HP:${target.maxHp}, HEAL:${target.heal})`);
+}
+
+
+// ======================= 강화 버튼 이벤트 =======================
+document.addEventListener('DOMContentLoaded', () => {
+    const enhanceBtn = document.getElementById('enhance-button');
+    if (!enhanceBtn) return;
+
+    enhanceBtn.addEventListener('click', () => {
+        const modal = document.getElementById('ally-status-modal');
+        if (!modal || modal.style.display === 'none') return;
+
+        // 현재 열린 캐릭터
+        const name = modal.querySelector('.ally-modal__title')?.textContent?.trim();
+        const ally = allies.find(a => a.name === name);
+        if (!ally) {
+            alert('강화할 대상을 찾을 수 없습니다.');
+            return;
+        }
+
+        // 강화 실행
+        enhanceCharacter(ally);
+    });
+});
+
+// ====================== 스킬 정보 정의 ======================
+const SKILLS = {
+    n: {
+        name: "월광수호(月光守護)",
+        desc: "퍼즐판의 월(N) 속성을 전부 파괴하고, 다음 턴에 받는 데미지를 0으로 만든다.",
+        effect() {
+            const slots = document.querySelectorAll(".puzzle-slot");
+            slots.forEach(slot => {
+                if (slot.dataset.element === "n") {
+                    slot.dataset.element = "";
+                    slot.style.backgroundImage = "none";
+                }
+            });
+            window.nextTurnInvincible = 1;
+            console.log("🌕 현무 - 월광수호 발동!");
+        }
+    },
+    s: {
+        name: "화수변(火水變)",
+        desc: "퍼즐판의 수(E) 속성을 전부 화(S) 속성으로 바꾸고, 바뀐 퍼즐 하나당 HP 50 회복.",
+        effect() {
+            const slots = document.querySelectorAll(".puzzle-slot");
+            let converted = 0;
+            slots.forEach(slot => {
+                if (slot.dataset.element === "e") {
+                    slot.dataset.element = "s";
+                    slot.style.backgroundImage = `url('icons/s.png')`;
+                    converted++;
+                }
+            });
+            const heal = converted * 50;
+            HP.changeHP(heal);
+            showHealTotalEffect(heal);
+            console.log(`🔥 주작 - 화수변 발동! ${converted}개 변환, ${heal} 회복`);
+        }
+    },
+    e: {
+        name: "수룡탄(水龍彈)",
+        desc: "이번 턴 동안 청룡의 공격력을 2배로 올린다.",
+        effect() {
+            const ally = allies.find(a => a.element === "e");
+            if (ally) {
+                ally.attack *= 2;
+                setTimeout(() => (ally.attack /= 2), 10000);
+            }
+            console.log("🌊 청룡 - 수룡탄 발동! 공격력 2배");
+        }
+    },
+    w: {
+        name: "서목창(西木槍)",
+        desc: "퍼즐판의 목(W) 속성 퍼즐 하나당 적에게 100의 데미지를 준다.",
+        effect() {
+            const slots = document.querySelectorAll(".puzzle-slot");
+            let count = 0;
+            slots.forEach(slot => {
+                if (slot.dataset.element === "w") count++;
+            });
+            const dmg = count * 100;
+            EnemyHP.damage(dmg);
+            console.log(`🐯 백호 - 서목창 발동! ${count}개 → ${dmg} 피해`);
+        }
+    },
+    m: {
+        name: "생월일변(生月日變)",
+        desc: "퍼즐판의 생명(L), 월(N) 속성을 전부 일(M) 속성으로 바꾼다.",
+        effect() {
+            const slots = document.querySelectorAll(".puzzle-slot");
+            let changed = 0;
+            slots.forEach(slot => {
+                if (slot.dataset.element === "l" || slot.dataset.element === "n") {
+                    slot.dataset.element = "m";
+                    slot.style.backgroundImage = `url('icons/m.png')`;
+                    changed++;
+                }
+            });
+            console.log(`🦌 기린 - 생월일변 발동! ${changed}개 변환`);
+        }
+    },
+    leader: {
+        name: "천변일격(天變一擊)",
+        desc: "현재 퍼즐판에서 가장 많은 속성의 돌을 전부 파괴하고, 그 개수 × 100 데미지를 준다.",
+        effect() {
+            const slots = document.querySelectorAll(".puzzle-slot");
+            const countMap = {};
+
+            // 1️⃣ 각 속성별 개수 세기
+            slots.forEach(slot => {
+                const el = slot.dataset.element;
+                if (!el) return;
+                countMap[el] = (countMap[el] || 0) + 1;
+            });
+
+            // 2️⃣ 가장 많은 속성 찾기
+            let topElement = null;
+            let topCount = 0;
+            for (const [el, cnt] of Object.entries(countMap)) {
+                if (cnt > topCount) {
+                    topElement = el;
+                    topCount = cnt;
+                }
+            }
+
+            if (!topElement || topCount === 0) {
+                console.log("⚠️ 파괴할 퍼즐이 없습니다.");
+                return;
+            }
+
+            // 3️⃣ 해당 속성 퍼즐 전부 제거
+            slots.forEach(slot => {
+                if (slot.dataset.element === topElement) {
+                    slot.dataset.element = "";
+                    slot.style.backgroundImage = "none";
+                }
+            });
+
+            // 4️⃣ 데미지 계산 및 적용
+            const dmg = topCount * 100;
+            EnemyHP.damage(dmg);
+            console.log(`👑 리더 - 천변일격 발동! (${topElement}) ${topCount}개 파괴, ${dmg} 피해`);
+        }
+    }
+};
+
+
 let _skillTarget = null;
+// ====================== 스킬창 표시 / 사용 로직 ======================
 function openSkillWindow(ally) {
-    if (!(ally && ally.skillReady)) { // 안전장치
-        openStatusWindow(ally);
+    const modal = document.getElementById("ally-skill-modal");
+    if (!modal) return;
+
+    const titleEl = modal.querySelector(".ally-modal__title");
+    const descEl = document.getElementById("ally-skill-content");
+    const useBtn = document.getElementById("btn-skill-use");
+    const cancelBtn = modal.querySelector(".ally-modal__cancel");
+
+    // 스킬 정보 가져오기 (리더 포함)
+    let skill;
+    if (ally.id === 1) {
+        skill = SKILLS["leader"];
+    } else {
+        skill = SKILLS[ally.element];
+    }
+    if (!skill) {
+        if (titleEl) titleEl.textContent = "스킬 없음";
+        if (descEl) descEl.textContent = "이 아군은 스킬을 사용할 수 없습니다.";
+        showModal(modal, true);
         return;
     }
-    _skillTarget = ally;
 
-    const modal = document.getElementById('ally-skill-modal');
-    const content = document.getElementById('ally-skill-content');
-    const useBtn = document.getElementById('btn-skill-use');
-    if (!modal || !content || !useBtn) return;
+    // 이름과 설명 세팅
+    if (titleEl) titleEl.textContent = skill.name || "스킬";
+    if (descEl) descEl.textContent = skill.desc || "설명이 없습니다.";
 
-    // 내용 구성(스킬 설명은 추후 교체)
-    content.innerHTML = `
-    <div><strong>${ally.name}</strong>의 스킬을 사용하시겠습니까?</div>
-    <div style="opacity:.8; margin-top:6px;">쿨타임: ${ally.cooldownMax}턴 (사용 시 초기화)</div>
-  `;
+    // 버튼 이벤트 초기화
+    if (useBtn) {
+        useBtn.onclick = () => {
+            try {
+                // 스킬 효과 발동
+                skill.effect();
 
-    useBtn.onclick = () => {
-        // 실제 스킬 효과 적용은 여기서 호출
-        consumeSkill(_skillTarget);      // 쿨타임 리셋
-        // TODO: 스킬 실제 효과 로직 호출(데미지/버프 등)
-        showModal(modal, false);
-    };
+                // 쿨타임 초기화
+                ally.cooldownLeft = ally.cooldownMax;
+                ally.skillReady = false;
 
-    bindModalClose(modal);
+                // 상태 갱신
+                updateAllAllyUI?.();
+                showModal(modal, false);
+
+                console.log(`✅ ${ally.name} 스킬 "${skill.name}" 발동 완료`);
+            } catch (err) {
+                console.error("스킬 발동 중 오류:", err);
+            }
+        };
+    }
+
+    if (cancelBtn) {
+        cancelBtn.onclick = () => showModal(modal, false);
+    }
+
+    // 모달 표시
     showModal(modal, true);
 }
 
@@ -1128,8 +1621,36 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleBtn.addEventListener('click', () => {
             footerZHigh = !footerZHigh;
             footer.style.zIndex = footerZHigh ? '6000' : '1000';
+
+            // ✅ 푸터 닫힐 때, 팝업을 완전히 숨기지 않고 zIndex만 초기화
+            if (!footerZHigh) {
+                document.querySelectorAll('.popup.show').forEach(p => {
+                    p.classList.remove('show');
+                    // 팝업은 닫은 표시만, display는 그대로 둠
+                });
+            }
         });
     }
+});
+
+
+
+function updateStageButtonText() {
+    const btnStage = document.getElementById('btnToggleFooterZ');
+    if (!btnStage) return;
+
+    const stage = localStorage.getItem('currentStage') || 1;
+    btnStage.textContent = `Rank ${stage}`;
+}
+
+function startNextStage() {
+    const next = Number(localStorage.getItem('currentStage') || 1) + 1;
+    localStorage.setItem('currentStage', next);
+    restoreAdventureState();
+    updateStageButtonText();
+}
+document.addEventListener('DOMContentLoaded', () => {
+    updateStageButtonText();
 });
 
 /* ======================= 아이콘 변경 (파일선택 + 크롭 + 저장) ======================= */
@@ -1325,12 +1846,318 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  if (!restoreAdventureState()) {
-    // 랭크1 시작은 항상 1000
+  const restoredEnemy = restoreEnemyFromLocal();
+  const restoredAdventure = restoreAdventureState();
+
+  // 완전 신규일 때만 새 적 생성
+  if (!restoredEnemy && !restoredAdventure) {
     EnemyHP.init(1000);
+    spawnEnemiesByStage(); // 새 적 랜덤 생성
     initPuzzleBoard();
     turnMovesLeft = turnMovesMax;
     updateTurnGauge();
     saveAdventureState();
   }
+});
+
+
+// ====== spawnEnemiesByStage (수정/대체) ======
+function spawnEnemiesByStage() {
+    const profile = JSON.parse(localStorage.getItem('profileV1') || '{}');
+    const stage = Number(profile.rank || 1);
+    const isElite = stage % 5 === 0;
+
+    const attrs = ['1', '2', '3', '4', '5'];
+    const attr = attrs[Math.floor(Math.random() * attrs.length)];
+
+    const codes = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l'];
+
+    let selected = [];
+    let tiers = [];
+
+    if (isElite) {
+        const patterns = [
+            [1, 3, 2],
+            [2, 3, 1],
+            [2, 3, 2],
+            [1, 3, 1]
+        ];
+        tiers = patterns[Math.floor(Math.random() * patterns.length)];
+        const bossCode = codes[Math.floor(Math.random() * codes.length)];
+        selected = [bossCode, bossCode, bossCode];
+    } else {
+        tiers = [1, 2, 1];
+        const baseCode = codes[Math.floor(Math.random() * codes.length)];
+        selected = [baseCode, baseCode, baseCode];
+    }
+
+    // 이미지 적용 — 티어에 따라 전역 리졸버 우선 사용
+    ['left', 'center', 'right'].forEach((pos, i) => {
+        const img = document.querySelector(`#monster-${pos} img`);
+        if (!img) return;
+
+        let src;
+        if (tiers[i] === 3 && typeof window.getEliteIllustURL === 'function') {
+            src = window.getEliteIllustURL(attr, selected[i]);
+        } else if (tiers[i] === 2 && typeof window.getBossIllustURL === 'function') {
+            src = window.getBossIllustURL(attr, selected[i]);
+        } else {
+            src = `enemy/${selected[i]}${tiers[i]}${attr}.png`;
+        }
+
+        img.src = src;
+        console.log(`⚔️ ${pos}: ${src}`);
+    });
+
+    window.currentEnemy = { codes: selected, tiers, attr };
+
+    localStorage.setItem(
+        'enemyStateV1',
+        JSON.stringify({ codes: selected, tiers, attr, maxHp: EnemyHP.max, currentHp: EnemyHP.current })
+    );
+    afterEnemySpawned();
+}
+
+// ====== restoreEnemyFromLocal (수정 / 복원시에도 리졸버 사용) ======
+function restoreEnemyFromLocal() {
+    const savedEnemy = localStorage.getItem('enemyStateV1');
+    if (!savedEnemy) return false;
+
+    try {
+        const e = JSON.parse(savedEnemy);
+        if (e.codes && e.tiers && e.attr) {
+            EnemyHP.max = e.maxHp || 1000;
+            EnemyHP.current = e.currentHp ?? EnemyHP.max;
+            EnemyHP.updateBar();
+
+            ['left', 'center', 'right'].forEach((pos, i) => {
+                const img = document.querySelector(`#monster-${pos} img`);
+                if (!img) return;
+                let src;
+                if (e.tiers[i] === 3 && typeof window.getEliteIllustURL === 'function') {
+                    src = window.getEliteIllustURL(e.attr, e.codes[i]);
+                } else if (e.tiers[i] === 2 && typeof window.getBossIllustURL === 'function') {
+                    src = window.getBossIllustURL(e.attr, e.codes[i]);
+                } else {
+                    src = `enemy/${e.codes[i]}${e.tiers[i]}${e.attr}.png`;
+                }
+                img.src = src;
+            });
+
+            window.currentEnemy = { codes: e.codes, tiers: e.tiers, attr: e.attr };
+
+            // ✅ 턴 UI 복원 추가
+            initEnemyTurnUI();
+            updateEnemyTurnUI();
+
+            return true;
+        }
+    } catch (err) {
+        console.warn('enemyStateV1 복원 실패', err);
+    }
+    return false;
+}
+
+// ====== 도감 변경 이벤트 수신 — 모험 중이면 즉시 갱신 ======
+window.addEventListener('bestiary:update', (ev) => {
+    try {
+        const detail = ev?.detail || {};
+        const changedAttr = String(detail.attr);   // 예: '1','2',... (도감에서 저장한 값)
+        const changedMotif = String(detail.motif); // 예: 'a','b',...
+
+        // 현재 전투 중인 적 정보가 없으면 무시
+        if (!window.currentEnemy) return;
+
+        // 현재 적과 속성이 같고, 코드(모티프)가 일치하며 해당 위치가 엘리트(티어 3)라면 업데이트
+        const { codes, tiers, attr } = window.currentEnemy;
+        if (!codes || !tiers) return;
+
+        // attr 비교는 엄격하게 문자열로
+        if (String(attr) !== String(changedAttr)) return;
+
+        ['left', 'center', 'right'].forEach((pos, i) => {
+            if (tiers[i] === 3 && String(codes[i]) === changedMotif) {
+                const img = document.querySelector(`#monster-${pos} img`);
+                if (!img) return;
+                // 엘리트 이미지는 전역 리졸버로 가져옴
+                if (typeof window.getEliteIllustURL === 'function') {
+                    img.src = window.getEliteIllustURL(attr, codes[i]);
+                }
+            }
+        });
+    } catch (err) {
+        console.warn('bestiary:update 처리 중 에러', err);
+    }
+});
+
+
+
+const btnCardTeam = document.getElementById('btnCardTeam');
+const cardTeam = document.getElementById('CardTeam');
+const btnGoHome = document.getElementById('btnGoHome');
+
+// 도감 버튼 클릭 → 도감 표시
+btnCardTeam?.addEventListener('click', () => {
+    cardTeam.classList.add('show');
+});
+
+// 홈 버튼 클릭 → 도감 닫기
+btnGoHome?.addEventListener('click', () => {
+    cardTeam.classList.remove('show');
+});
+
+
+// ✅ 안전한 네임스페이스로 변경
+window.BESTIARY_DATA = {
+    A: { 1: { atk: 100, turn: 2 }, 2: { atk: 200, turn: 3 }, 3: { atk: 300, turn: 1 } },
+    B: { 1: { atk: 300, turn: 2 }, 2: { atk: 600, turn: 3 }, 3: { atk: 900, turn: 3 } },
+    C: { 1: { atk: 400, turn: 2 }, 2: { atk: 800, turn: 3 }, 3: { atk: 1200, turn: 5 } },
+    D: { 1: { atk: 100, turn: 2 }, 2: { atk: 200, turn: 3 }, 3: { atk: 300, turn: 1 } },
+    E: { 1: { atk: 400, turn: 2 }, 2: { atk: 800, turn: 3 }, 3: { atk: 1200, turn: 5 } },
+    F: { 1: { atk: 100, turn: 2 }, 2: { atk: 200, turn: 3 }, 3: { atk: 600, turn: 3 } },
+    G: { 1: { atk: 300, turn: 2 }, 2: { atk: 400, turn: 3 }, 3: { atk: 500, turn: 1 } },
+    H: { 1: { atk: 200, turn: 2 }, 2: { atk: 300, turn: 3 }, 3: { atk: 400, turn: 3 } },
+    I: { 1: { atk: 100, turn: 2 }, 2: { atk: 200, turn: 3 }, 3: { atk: 300, turn: 1 } },
+    J: { 1: { atk: 100, turn: 2 }, 2: { atk: 200, turn: 3 }, 3: { atk: 600, turn: 1 } },
+    K: { 1: { atk: 200, turn: 2 }, 2: { atk: 400, turn: 3 }, 3: { atk: 1000, turn: 1 } },
+    L: { 1: { atk: 100, turn: 2 }, 2: { atk: 200, turn: 3 }, 3: { atk: 400, turn: 5 } },
+};
+
+/* ===============================
+   🎯 적 턴 UI (턴 수 시각화 개선 버전)
+================================= */
+
+// EnemyList가 전역에 없으면 생성
+window.EnemyList = window.EnemyList || [];
+
+// ===== 턴 갱신 =====
+function updateEnemyTurnUI() {
+    if (!window.EnemyList || !Array.isArray(EnemyList)) return;
+    EnemyList.forEach(enemy => {
+        const el = document.querySelector(`#monster-${enemy.id} .enemy-turn`);
+        if (el) el.textContent = `${enemy.counter}t`;
+    });
+}
+
+// ===== 턴 감소 함수 =====
+function decreaseEnemyTurn(index) {
+    if (!window.EnemyList || !EnemyList[index]) return;
+    const enemy = EnemyList[index];
+    enemy.counter -= 1;
+    if (enemy.counter <= 0) {
+        enemy.counter = enemy.turn; // 초기화
+    }
+    updateEnemyTurnUI();
+}
+
+// ===== 적 생성 직후 턴 데이터 초기화 =====
+function initEnemyTurnUI() {
+    // currentEnemy 정보가 없으면 복원 시도
+    const enemyData = window.currentEnemy;
+    if (!enemyData || !enemyData.codes) return;
+
+    const profile = JSON.parse(localStorage.getItem('profileV1') || '{}');
+    const stageLevel = Number(profile.rank || 1);
+
+    EnemyList = []; // 새로 초기화
+
+    ['left', 'center', 'right'].forEach((pos, i) => {
+        const monster = document.querySelector(`#monster-${pos}`);
+        if (!monster) return;
+
+        // 적 코드, 티어, 속성 추출
+        const code = enemyData.codes[i]?.toUpperCase?.() || 'A';
+        const tier = enemyData.tiers[i] || 1;
+
+        // ENEMY_TABLE의 턴값 가져오기
+        const entry = window.BESTIARY_DATA?.[code]?.[tier] || { atk: 100, turn: 2 };
+        const turnValue = entry.turn;
+
+        // EnemyList에 추가
+        EnemyList.push({
+            id: pos,
+            code,
+            tier,
+            turn: turnValue,
+            counter: turnValue,
+        });
+
+        // 턴 텍스트 엘리먼트 생성
+        let turnEl = monster.querySelector('.enemy-turn');
+        if (!turnEl) {
+            turnEl = document.createElement('div');
+            turnEl.className = 'enemy-turn';
+            Object.assign(turnEl.style, {
+                position: 'absolute',
+                right: '15%',
+                top: '45%',
+                fontWeight: '900',
+                color: '#ff3b3b',
+                fontSize: '1.8vw',
+                textShadow: '0 0 4px #660000',
+                zIndex: '9999',
+                pointerEvents: 'none',
+                userSelect: 'none',
+            });
+            monster.style.position = monster.style.position || 'relative';
+            monster.appendChild(turnEl);
+        }
+
+        // 즉시 표시
+        turnEl.textContent = `${turnValue}t`;
+    });
+}
+
+// ===== 적 생성 완료 후 항상 호출 =====
+function afterEnemySpawned() {
+    initEnemyTurnUI();
+    updateEnemyTurnUI();
+}
+
+function handleTurnAdvance() {
+    // 턴 차감
+    EnemyList.forEach((_, i) => decreaseEnemyTurn(i));
+
+    // (선택) 턴 종료 시 추가 이펙트나 로그
+    console.log("턴 진행 완료 ⚔️");
+
+    // ✅ 적의 공격 턴 도래 시 데미지 적용
+    EnemyList.forEach((enemy) => {
+        if (enemy.counter === enemy.turn) { // 턴이 초기화된 적 = 공격 턴
+            const entry = window.BESTIARY_DATA?.[enemy.code]?.[enemy.tier];
+            const baseDmg = entry?.atk || 100;
+            const profile = JSON.parse(localStorage.getItem('profileV1') || '{}');
+            const stage = Number(profile.rank || 1);
+            const damage = baseDmg + stage * 10; // 스테이지 보정
+            applyEnemyAttack(damage);
+        }
+    });
+
+    // 🕒 턴 종료 시 스킬 쿨타임 1 감소
+    progressSkillCooldown();
+
+    if (window.nextTurnInvincible > 0) {
+        window.nextTurnInvincible--;
+    }
+}
+// ====================== 턴 종료 시 쿨타임 감소 ======================
+function progressSkillCooldown() {
+    allies.forEach(a => {
+        if (!a) return;
+        if (a.cooldownMax <= 0) return; // 쿨타임 없는 캐릭터 제외
+        if (a.skillReady) return;        // 이미 준비 완료면 스킵
+
+        // 턴당 1씩 감소
+        a.cooldownLeft = Math.max(0, (a.cooldownLeft || 0) - 1);
+        if (a.cooldownLeft === 0) a.skillReady = true;
+    });
+    updateAllAllyUI?.();
+}
+// 전역 어딘가 (가장 위든 아래든 상관 없음)
+Object.defineProperty(window, 'nextTurnInvincible', {
+    set(v) {
+        console.log('🧭 nextTurnInvincible 변경 →', v, new Error().stack.split('\n')[2]);
+        this._nti = v;
+    },
+    get() { return this._nti || 0; }
 });

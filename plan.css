@@ -643,3 +643,80 @@ textarea,
   flex: 1;
   /* 남은 공간 전부 차지 */
 }
+
+.attr-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.attr-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  outline: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.attr-btn.purple {
+  background-color: #9b59b6;
+}
+
+.attr-btn.red {
+  background-color: #e74c3c;
+}
+
+.attr-btn.blue {
+  background-color: #3498db;
+}
+
+.attr-btn.green {
+  background-color: #27ae60;
+}
+
+.attr-btn.yellow {
+  background-color: #f1c40f;
+}
+
+.attr-btn.active {
+  outline: 3px solid #fff;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+}
+/* === 적 도감 배경/카드 무채색 톤 조정 === */
+#BestiaryPopup {
+  background-color: #727272;
+  /* 중간톤 그레이 */
+  color: #f5f5f5;
+}
+
+.bestiary-grid {
+  background: transparent;
+}
+
+.bestiary-card {
+  background: #3a3a3a;
+  border: 1px solid #555;
+  border-radius: 12px;
+  color: #f5f5f5;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bestiary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+
+.bestiary-card .name {
+  color: #f5f5f5;
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.6);
+}
+
+/* 상세창(보스/엘리트 영역 포함)도 같은 계열 */
+#bestDetail {
+  background-color: #3a3a3a;
+  border-radius: 12px;
+  padding: 10px;
+  color: #f5f5f5;
+}

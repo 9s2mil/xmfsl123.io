@@ -127,7 +127,7 @@ body.no-scroll {
 
 .enemy-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 0.8fr 1fr 0.8fr;
   gap: 0;
   width: 100%;
   height: 100%;
@@ -376,7 +376,25 @@ body.no-scroll {
   display: block;
 }
 
+.enemy-turn {
+  position: absolute;
+  right: 10%;
+  top: 25%;
+  font-weight: 900;
+  color: #ff3b3b;
+  font-size: 4vw;
+  text-shadow: 0 0 4px #660000;
+  z-index: 9999;
+  pointer-events: none;
+  user-select: none;
+}
 
+.btn-toggle-footer {
+ background-color: rgba(0, 0, 0, 0);
+ border: none;
+ color: #fff;
+ font-weight: bold;
+}
 
 /* 모달 공통 */
 .ally-modal {
