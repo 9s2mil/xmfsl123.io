@@ -154,7 +154,7 @@ const Renderer = {
                 card.classList.add('done');            // 취소선 적용
                 btnCheck.disabled = true;              // 버튼 비활성화
 
-                Rewards.grantPoints(t.difficulty || 1); // ★ 난이도만큼 포인트 지급(1~4)
+                Rewards.giveRose(t.difficulty || 1); // ★ 난이도만큼 포인트 지급(1~4)
             });
 
             btnEdit.addEventListener('click', () => {
@@ -184,6 +184,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const popups = document.querySelectorAll('.popup');
     const footerButtons = document.querySelectorAll('footer button, #btnOpenSummon');
     let activePopup = null;
+
+    document.getElementById("btnCloseAllPopups")?.addEventListener("click", () => {
+
+        // 1) 모든 일반 팝업 닫기
+        document.querySelectorAll(".popup").forEach(p => p.classList.remove("show"));
+        document.body.classList.remove("no-scroll");
+
+        // 2) 전투 모드일 경우 → 푸터만 숨김
+        const adv = document.getElementById("adventureScreen");
+        if (adv && adv.style.display !== "none") {
+            const footer = document.querySelector("footer");
+            if (footer) footer.style.display = "none";
+        }
+
+        // 3) 적도감 닫기
+        const bestiary = document.getElementById("BestiaryPopup");
+        if (bestiary) bestiary.style.display = "none";
+
+        // 4) 적도감 상세 패널 닫기
+        const detail = document.getElementById("bestDetail");
+        if (detail) detail.hidden = true;
+    });
+
+    const savedAvatar = localStorage.getItem("profileAvatar");
+    if (savedAvatar) {
+        const avatarImg = document.querySelector("#headerAvatar img");
+        if (avatarImg) avatarImg.src = savedAvatar;
+    }
 
     function openPopupById(popupId) {
         const targetPopup = document.getElementById(popupId);
@@ -258,6 +286,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // ✅ 다음 프레임에서 랭크 갱신
             requestAnimationFrame(updateRankUI);
+
+            // 🔥 푸터가 none 상태라면 block으로 복귀
+            const footer = document.querySelector("footer");
+            if (footer && getComputedStyle(footer).display === "none") {
+                footer.style.display = "flex";   // ← block ❌  반드시 flex로 복구
+            }
         });
     }
 
@@ -380,6 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formEl.reset();
         setStar(1);
         openScreen();
+        document.getElementById("screenDelete").style.display = "none";
     }
 
     function enterEditMode(origin, id) {
@@ -393,6 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fillFormFromTask(task);
         setStar(Number(task.difficulty || 1));
         openScreen();
+        document.getElementById("screenDelete").style.display = "inline-block";
     }
 
     window.enterEditMode = enterEditMode; // ← 여기
@@ -441,6 +477,19 @@ document.addEventListener('DOMContentLoaded', () => {
         formEl.reset();
         setStar(1);
         closeScreen();
+    });
+
+    document.getElementById("screenDelete")?.addEventListener("click", () => {
+        const origin = screenEl.dataset.origin;
+        const id = inputEditId?.value;
+
+        if (!origin || !id) return;
+
+        if (confirm("정말 삭제하시겠습니까?")) {
+            TaskStore.remove(origin, id);
+            Renderer.renderList(origin);
+            closeScreen();
+        }
     });
 
     // 한국시간(Asia/Seoul) 기준 'YYYY-MM-DD'
@@ -584,6 +633,25 @@ const Rewards = (() => {
         window.dispatchEvent(new CustomEvent('rewards:update'));
     }
 
+    function giveRose(n = 1) {
+        refreshFromStorage();
+
+        // 🔥 로즈키 누적 증가
+        state.roseTotal += n;
+
+        // 🔥 로즈키 누적 기준 → 실버키 자동 증가
+        const newSilver = Math.floor(state.roseTotal / 10);
+        state.silverTotal = newSilver;
+
+        // 🔥 실버키 누적 기준 → 골드키 자동 증가
+        const newGold = Math.floor(state.silverTotal / 10);
+        state.goldTotal = newGold;
+
+        save();
+        updateUI();
+        window.dispatchEvent(new CustomEvent('rewards:update'));
+    }
+
     function buyRose() {
         refreshFromStorage();  
         if (state.points < 1) return;
@@ -653,6 +721,7 @@ const Rewards = (() => {
         init,
         grantPoints,    
         getRose, setRose, consumeRose, 
+        giveRose,
         _state: state,
         _save: save, _updateUI: updateUI
     };
@@ -1053,3 +1122,105 @@ function resetAllyIconsToDefault() {
     });
 })();
 
+// ====================== 아바타 변경 기능 ======================
+document.addEventListener("DOMContentLoaded", () => {
+    const avatarBox = document.getElementById("headerAvatar");
+    const fileInput = document.getElementById("iconFileInput");
+
+    if (!avatarBox || !fileInput) return;
+
+    // 클릭 → 파일 선택창 열기
+    avatarBox.addEventListener("click", () => {
+        fileInput.dataset.mode = "avatar"; // 구분용
+        fileInput.click();
+    });
+
+    // 파일 선택 → 기존 아이콘 크롭 모달 사용
+    fileInput.addEventListener("change", (e) => {
+        if (!e.target.files?.length) return;
+
+        if (fileInput.dataset.mode === "avatar") {
+            startAvatarCropFlow(e.target.files[0]);
+        }
+    });
+});
+
+// ====================== 아바타 크롭 플로우 ======================
+function startAvatarCropFlow(file) {
+    const modal = document.getElementById("iconCropModal");
+    const canvas = document.getElementById("iconCropCanvas");
+    const ctx = canvas.getContext("2d");
+    const zoom = document.getElementById("iconZoom");
+
+    if (!modal || !canvas || !zoom) return;
+
+    const img = new Image();
+    img.onload = () => {
+        let scale = 1;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        zoom.value = 1;
+
+        // 크롭 모달 열기
+        modal.style.display = "block";
+        document.getElementById("modal-backdrop").style.display = "block";
+
+        // 드래그 이동
+        canvas.onpointerdown = (ev) => {
+            const startX = ev.clientX;
+            const startY = ev.clientY;
+            const beforeX = offsetX;
+            const beforeY = offsetY;
+
+            const move = (mv) => {
+                offsetX = beforeX + (mv.clientX - startX);
+                offsetY = beforeY + (mv.clientY - startY);
+                draw();
+            };
+
+            const up = () => {
+                window.removeEventListener("pointermove", move);
+                window.removeEventListener("pointerup", up);
+            };
+
+            window.addEventListener("pointermove", move);
+            window.addEventListener("pointerup", up);
+        };
+
+        zoom.oninput = () => {
+            scale = Number(zoom.value);
+            draw();
+        };
+
+        function draw() {
+            ctx.clearRect(0, 0, 512, 512);
+            ctx.drawImage(
+                img,
+                offsetX,
+                offsetY,
+                img.width * scale,
+                img.height * scale
+            );
+        }
+
+        // 저장 버튼
+        document.getElementById("iconCropSave").onclick = () => {
+            const data = canvas.toDataURL("image/png");
+
+            // 🔥 아바타 이미지 저장
+            localStorage.setItem("profileAvatar", data);
+
+            // 🔥 헤더에 즉시 반영
+            const avatarImg = document.querySelector("#headerAvatar img");
+            if (avatarImg) avatarImg.src = data;
+
+            // 모달 닫기
+            modal.style.display = "none";
+            document.getElementById("modal-backdrop").style.display = "none";
+        };
+
+        draw();
+    };
+    img.src = URL.createObjectURL(file);
+}

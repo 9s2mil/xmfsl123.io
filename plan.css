@@ -12,15 +12,12 @@ body {
   height: 100%;
   font-family: sans-serif;
   touch-action: manipulation;
+  background: #EFE7DD;
 }
 
 body {
   display: flex;
   flex-direction: column;
-  /* 롤백: dvh / safe-area 패딩 제거 */
-  /* min-height: 100dvh;  */
-  /* padding: env(safe-area-inset-top) env(safe-area-inset-right)
-             env(safe-area-inset-bottom) env(safe-area-inset-left); */
 }
 
 header {
@@ -533,6 +530,10 @@ footer button {
   color: #6b7280;
   font-size: 12px;
 }
+/*.row.keys {
+  flex-direction: column;
+  align-items: center;
+}*/
 
 .icon-btn {
   border: 0;
@@ -560,6 +561,7 @@ footer button {
   padding: 2px 8px;
   font-size: 12px;
   background: #fff;
+  background: transparent !important;
 }
 
 .avatar-img {
@@ -641,7 +643,7 @@ textarea,
   align-items: center;
   /* 세로 중앙 */
   flex: 1;
-  /* 남은 공간 전부 차지 */
+  background: #fff;
 }
 
 .attr-btns {
@@ -719,4 +721,85 @@ textarea,
   border-radius: 12px;
   padding: 10px;
   color: #f5f5f5;
+}
+
+/* 설정 팝업 타이틀 라인 */
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+/* h2가 너무 붙지 않게 */
+.settings-header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+/* 홈버튼 작게 */
+.mini-btn {
+  padding: 4px 10px;
+  font-size: 14px;
+  border-radius: 6px;
+  background: #eee;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
+
+/* 설정 버튼 묶음 */
+.settings-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* 설정 버튼 스타일 */
+.set-btn {
+  padding: 6px 14px;
+  font-size: 15px;
+  border-radius: 6px;
+  background: #f3f3f3;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
+
+.set-btn:active,
+.mini-btn:active {
+  transform: scale(0.96);
+}
+
+/* 설정 버튼 (메인 버튼 톤 통일) */
+.set-btn {
+  width: 160px;
+  padding: 10px 0;
+  margin-bottom: 10px;
+
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+
+  border: none;
+  border-radius: 14px;
+
+  background: linear-gradient(to bottom, #f28b22, #d96a0f);
+  box-shadow: 0 4px 7px rgba(0,0,0,0.12);
+
+  cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.15s ease;
+}
+
+/* 눌림 */
+.set-btn:active {
+  transform: scale(0.95);
+  opacity: 0.85;
+}
+
+/* 설정 전체 그룹 중앙 정렬 */
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 12px;
 }

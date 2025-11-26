@@ -28,15 +28,10 @@
       <span id="headerNickname">닉네임 설정</span>
       <input id="nickInput" class="nick-input" type="text" maxlength="20" placeholder="닉네임" />
     </div>
-
+    
     <div class="row meta">
       <span class="label">랭크</span>
       <strong id="headerRank">1</strong>
-    </div>
-
-    <div class="row keray">
-      <span class="label">케레이</span>
-      <strong id="hdrKeray">0</strong>
     </div>
 
     <div class="row keys">
@@ -61,7 +56,7 @@
   <main class="main-container">
     <div class="main-buttons">
       <button class="main-btn" id="btnAdventure">모험</button>
-      <button class="main-btn" id="btnCardTeam">도감</button>
+      <button class="main-btn" id="btnCardTeam">설정</button>
     </div>
   </main>
 
@@ -185,19 +180,30 @@
   <!-- 1단계: 카드 - 팀편성 팝업 -->
   <div class="popup" id="CardTeam">
     <div class="popupContent">
-      <h2>도감</h2>
-      <button id="btnGoHome">🏠 홈으로</button>1
-      <button id="btnBestiary">적도감</button>
-      <button onclick="resetAllLocalStorage()">전체 초기화</button>
-      <button onclick="resetAllyIconsToDefault()">아이콘 초기화</button>
+
+      <!-- 상단 타이틀 라인 -->
+      <div class="settings-header">
+        <h2>설정</h2>
+      </div>
+
+      <!-- 설정 버튼 그룹 -->
+      <div class="settings-group">
+        <button id="btnBestiary" class="set-btn">적도감</button>
+        <button onclick="resetAllyIconsToDefault()" class="set-btn">아이콘 초기화</button>
+
+        <!-- 전체 초기화는 숨김 -->
+        <button onclick="resetAllLocalStorage()" id="btnTotalReset" style="display:none;">전체 초기화</button>
+      </div>
+
     </div>
   </div>
+
 
 <footer>
   <button data-popup="popup1">✅<br><span class="smft">일일 과제</span></button>
   <button data-popup="popup2">🌱<br><span class="smft">습관</span></button>
   <button data-popup="popup3">🏆<br><span class="smft">목표</span></button>
-  <button data-popup="popup4">🎁<br><span class="smft">보상</span></button>
+  <button id="btnCloseAllPopups">❌<br><span class="smft">닫기</span></button>
 </footer>
 
   <div class="popup" id="popup1">
@@ -305,6 +311,7 @@
 
         <!-- 액션 버튼 영역 -->
         <div class="actions">
+          <button id="screenDelete" class="btn-secondary" style="display:none;">삭제</button>
           <button type="button" class="btn-secondary" id="screenCancel">취소</button>
           <button type="submit" class="btn-primary">저장</button>
         </div>
@@ -389,7 +396,6 @@
       <button data-attr="4" class="attr-btn green"></button>
       <button data-attr="5" class="attr-btn yellow"></button>
     </div>
-    <button id="bestClose" style="margin-left:auto">닫기</button>
     <select id="bestAttr" hidden><option value="1"></option><option value="2"></option><option value="3"></option><option value="4"></option><option value="5"></option></select>
   </div>
 

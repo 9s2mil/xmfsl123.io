@@ -1418,11 +1418,10 @@ const SKILLS = {
                 }
             });
             window.nextTurnInvincible = 1;
-            console.log("🌕 현무 - 월광수호 발동!");
         }
     },
     s: {
-        name: "화수변(火水變)",
+        name: "화수변생(火水變生)",
         desc: "퍼즐판의 수(E) 속성을 전부 화(S) 속성으로 바꾸고, 바뀐 퍼즐 하나당 HP 50 회복.",
         effect() {
             const slots = document.querySelectorAll(".puzzle-slot");
@@ -1437,11 +1436,10 @@ const SKILLS = {
             const heal = converted * 50;
             HP.changeHP(heal);
             showHealTotalEffect(heal);
-            console.log(`🔥 주작 - 화수변 발동! ${converted}개 변환, ${heal} 회복`);
         }
     },
     e: {
-        name: "수룡탄(水龍彈)",
+        name: "수기룡탄(水氣龍彈)",
         desc: "이번 턴 동안 청룡의 공격력을 2배로 올린다.",
         effect() {
             const ally = allies.find(a => a.element === "e");
@@ -1449,11 +1447,10 @@ const SKILLS = {
                 ally.attack *= 2;
                 setTimeout(() => (ally.attack /= 2), 10000);
             }
-            console.log("🌊 청룡 - 수룡탄 발동! 공격력 2배");
         }
     },
     w: {
-        name: "서목창(西木槍)",
+        name: "목뢰참격 (木雷斬擊)",
         desc: "퍼즐판의 목(W) 속성 퍼즐 하나당 적에게 100의 데미지를 준다.",
         effect() {
             const slots = document.querySelectorAll(".puzzle-slot");
@@ -1463,7 +1460,6 @@ const SKILLS = {
             });
             const dmg = count * 100;
             EnemyHP.damage(dmg);
-            console.log(`🐯 백호 - 서목창 발동! ${count}개 → ${dmg} 피해`);
         }
     },
     m: {
@@ -1479,7 +1475,6 @@ const SKILLS = {
                     changed++;
                 }
             });
-            console.log(`🦌 기린 - 생월일변 발동! ${changed}개 변환`);
         }
     },
     leader: {
@@ -1489,14 +1484,12 @@ const SKILLS = {
             const slots = document.querySelectorAll(".puzzle-slot");
             const countMap = {};
 
-            // 1️⃣ 각 속성별 개수 세기
             slots.forEach(slot => {
                 const el = slot.dataset.element;
                 if (!el) return;
                 countMap[el] = (countMap[el] || 0) + 1;
             });
 
-            // 2️⃣ 가장 많은 속성 찾기
             let topElement = null;
             let topCount = 0;
             for (const [el, cnt] of Object.entries(countMap)) {
@@ -1511,7 +1504,6 @@ const SKILLS = {
                 return;
             }
 
-            // 3️⃣ 해당 속성 퍼즐 전부 제거
             slots.forEach(slot => {
                 if (slot.dataset.element === topElement) {
                     slot.dataset.element = "";
@@ -1519,10 +1511,8 @@ const SKILLS = {
                 }
             });
 
-            // 4️⃣ 데미지 계산 및 적용
             const dmg = topCount * 100;
             EnemyHP.damage(dmg);
-            console.log(`👑 리더 - 천변일격 발동! (${topElement}) ${topCount}개 파괴, ${dmg} 피해`);
         }
     }
 };
