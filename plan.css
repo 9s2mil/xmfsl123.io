@@ -94,30 +94,33 @@ footer button {
 }
 
 .addbutton {
-  width: 40px;
-  height: 40px;
-  background: #f5f5f5;
-  border: #222 solid 1px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ffffff, #dcdcdc);
+  border: none;
   cursor: pointer;
-  transform: rotate(45deg);
-  /* 버튼 자체를 기울임 */
   display: flex;
   align-items: center;
   justify-content: center;
   position: fixed;
-  top: 32vh;;
+  top: 32vh;
   right: 20px;
   z-index: 9999;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  box-shadow:
+    inset 4px 4px 7px rgba(0, 0, 0, 0.18),
+    inset -4px -4px 7px rgba(255, 255, 255, 0.8),
+    0 2px 6px rgba(0, 0, 0, 0.25);
+
+  font-size: 28px;
+  font-weight: bold;
+  color: #444;
+  transition: transform 0.1s ease;
 }
 
-/* 버튼 안의 텍스트를 다시 반대로 회전 */
-.addbutton span {
-  transform: rotate(-45deg);
-  color: #000;
-  font-weight: bold;
-  font-size: auto;
-  pointer-events: none;
+/* 눌림 효과 */
+.addbutton:active {
+  transform: scale(0.9);
 }
 
 /* 해당 팝업이 열릴 때만 버튼 노출 */
