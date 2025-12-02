@@ -124,7 +124,7 @@ const Renderer = {
         </div>
       </div>
       <div class="task-actions">
-        <button type="button" class="btn btn-check">확인</button>
+        <button type="button" class="btn btn-check">완료</button>
         <button type="button" class="btn btn-edit">수정</button>
       </div>
     `;
@@ -1015,18 +1015,47 @@ function resetAllyIconsToDefault() {
     // 팝업 열기/닫기
     btnOpen.addEventListener('click', () => { popup.style.display = 'block'; renderGrid(); });
     bestClose?.addEventListener('click', () => { popup.style.display = 'none'; detail.hidden = true; });
-    bestAttr?.addEventListener('change', () => { renderGrid(); });
+    bestAttr?.addEventListener('change', () => {
+        renderGrid();
+
+        // 상세창이 열려 있으면 같이 갱신
+        if (!detail.hidden && currentMotif) {
+            renderDetail();
+        }
+    });
 
     const attrBtns = document.querySelectorAll('#bestAttrBtns .attr-btn');
 
     attrBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const val = btn.dataset.attr;
-            bestAttr.value = val; // 내부 select 동기화
+            bestAttr.value = val;
+
+            // 버튼 visual active 처리
             attrBtns.forEach(b => b.classList.toggle('active', b === btn));
-            renderGrid(); // 썸네일 갱신
+
+            // 그리드 목록 갱신
+            renderGrid();
+
+            // ★ detail이 열려 있고 currentMotif가 존재하면 내부 이미지 모두 갱신!
+            if (!detail.hidden && currentMotif) {
+                const a = bestAttr.value;
+
+                // 메인 아이콘
+                bestIcon.src = `enemy/${currentMotif.key}1${a}.png`;
+
+                // 보스
+                bestBossPrev.src = window.getBossIllustURL(a, currentMotif.key);
+
+                // 엘리트 보스
+                bestElitePrev.src = window.getEliteIllustURL(a, currentMotif.key);
+
+                // 속성명 텍스트도 교체
+                bestAttrView.textContent = ATTR_LABEL[a] || a;
+            }
         });
     });
+
 
     // 📋 도감 그리드 생성 (적 이미지 버전)
     function renderGrid() {
@@ -1081,6 +1110,7 @@ function resetAllyIconsToDefault() {
         const a = bestAttr.value || '1';
         bestAttrView.textContent = ATTR_LABEL[a] || a;
 
+        bestIcon.src = `enemy/${currentMotif.key}1${a}.png`;
         bossPrev.src = window.getBossIllustURL(a, currentMotif.key);
         elitePrev.src = window.getEliteIllustURL(a, currentMotif.key);
     }
